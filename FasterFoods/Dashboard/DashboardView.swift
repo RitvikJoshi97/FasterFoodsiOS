@@ -9,6 +9,10 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
+    
+    private let workoutGoalMinutes: Double = 45
+    private let macroTargets = MacroTargets(calories: 2000, carbs: 240, protein: 120, fat: 70)
+    private let featuredArticles = ArticleLoader.featured(limit: 4)
 
     private var greeting: String {
         if let user = app.currentUser {
@@ -26,31 +30,25 @@ struct DashboardView: View {
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    DashboardCard(title: "Today's Overview", systemImage: "sun.max") {
-                        Text("Calories, macros, and hydration at a glance.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Today's Progress", systemImage: "chart.bar.doc.horizontal")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        TodaysProgressCarousel(
+                            workoutSummary: workoutSummary,
+                            foodSummary: foodLogSummary
+                        )
+                        .padding(.vertical, 4)
                     }
 
-                    DashboardCard(title: "Goals In Progress", systemImage: "target") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ProgressRow(label: "Calorie Target", value: 0.62)
-                            ProgressRow(label: "Protein Goal", value: 0.48, tint: .purple)
-                            ProgressRow(label: "Hydration", value: 0.75, tint: .teal)
-                        }
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Suggested Reads", systemImage: "book.closed")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        SuggestedReadsSection(articles: featuredArticles)
                     }
 
-                    // Goals Section
                     GoalsSection()
-
-                    DashboardCard(title: "Next Up", systemImage: "calendar") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            DashboardListRow(title: "Plan your shopping list", detail: "Add items for the week ahead")
-                            DashboardListRow(title: "Schedule a workout", detail: "Keep momentum with a 30 min session")
-                            DashboardListRow(title: "Review custom metrics", detail: "Track what's working for you")
-                        }
-                    }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 24)
@@ -58,6 +56,125 @@ struct DashboardView: View {
             .navigationTitle("Dashboard")
         }
     }
+}
+
+private extension DashboardView {
+    var workoutSummary: WorkoutSummary {
+        let todayItems = app.workoutItems.filter { isToday($0.datetime) }
+        let totalMinutes = todayItems.reduce(0) { partialResult, item in
+            partialResult + parseDurationMinutes(from: item.duration)
+        }
+        let progress = workoutGoalMinutes > 0 ? min(totalMinutes / workoutGoalMinutes, 1) : 0
+        
+        let state: WorkoutState
+        if todayItems.isEmpty || totalMinutes <= 0 {
+            state = .notStarted
+        } else if totalMinutes >= workoutGoalMinutes {
+            state = .completed
+        } else {
+            state = .partiallyCompleted
+        }
+        
+        let durationText: String
+        if totalMinutes >= 60 {
+            durationText = String(format: "%.1fh", totalMinutes / 60)
+        } else {
+            durationText = "\(Int(totalMinutes))min"
+        }
+        
+        let subtitleText: String
+        switch state {
+        case .completed:
+            subtitleText = "Well done, rest well"
+        case .partiallyCompleted:
+            let remaining = max(workoutGoalMinutes - totalMinutes, 0)
+            subtitleText = "\(Int(ceil(remaining))) minutes more"
+        case .notStarted:
+            subtitleText = "Start your workout"
+        }
+        
+        return WorkoutSummary(
+            durationText: durationText,
+            subtitleText: subtitleText,
+            progress: progress,
+            state: state
+        )
+    }
+    
+    var foodLogSummary: FoodLogSummary {
+        let todayItems = app.foodLogItems.filter { isToday($0.datetime) }
+        let totalCalories = todayItems.reduce(0.0) { $0 + parseDouble($1.calories) }
+        let protein = todayItems.reduce(0.0) { $0 + parseDouble($1.protein) }
+        let fat = todayItems.reduce(0.0) { $0 + parseDouble($1.fat) }
+        
+        // Estimate carbs from remaining calories if explicit value is missing.
+        let carbCalories = max(totalCalories - (protein * 4 + fat * 9), 0)
+        let carbs = carbCalories / 4
+        
+        let macros: [MacroRingData] = [
+            MacroRingData(label: "Carbs", consumed: carbs, target: macroTargets.carbs, color: .orange),
+            MacroRingData(label: "Protein", consumed: protein, target: macroTargets.protein, color: .purple),
+            MacroRingData(label: "Fat", consumed: fat, target: macroTargets.fat, color: .pink)
+        ]
+        
+        let completionScores = macros.map { $0.progress }
+        let hasData = macros.contains(where: { $0.consumed > 0 })
+        let recommendation: String
+        if hasData {
+            if completionScores.allSatisfy({ $0 >= 1 }) {
+                recommendation = "Try to not have more today"
+            } else if completionScores.allSatisfy({ $0 >= 0.75 }) {
+                recommendation = "Light curd"
+            } else {
+                recommendation = "Pasta"
+            }
+        } else {
+            recommendation = "Pasta"
+        }
+        
+        return FoodLogSummary(
+            calories: Int(totalCalories.rounded()),
+            macros: macros,
+            recommendation: recommendation
+        )
+    }
+    
+    func parseDurationMinutes(from text: String) -> Double {
+        let allowedCharacters = CharacterSet(charactersIn: "0123456789.")
+        let filtered = text.unicodeScalars.filter { allowedCharacters.contains($0) }
+        return Double(String(filtered)) ?? 0
+    }
+    
+    func parseDouble(_ text: String?) -> Double {
+        guard let raw = text, !raw.isEmpty else { return 0 }
+        let allowedCharacters = CharacterSet(charactersIn: "0123456789.")
+        let filtered = raw.unicodeScalars.filter { allowedCharacters.contains($0) }
+        return Double(String(filtered)) ?? 0
+    }
+    
+    func isToday(_ isoString: String) -> Bool {
+        guard let date = parseDate(from: isoString) else { return false }
+        return Calendar.current.isDateInToday(date)
+    }
+    
+    func parseDate(from isoString: String) -> Date? {
+        if let date = DashboardView.isoFormatterWithFractional.date(from: isoString) {
+            return date
+        }
+        return DashboardView.isoFormatter.date(from: isoString)
+    }
+    
+    static let isoFormatterWithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    
+    static let isoFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 }
 
 struct DashboardCard<Content: View>: View {
@@ -86,35 +203,420 @@ struct DashboardCard<Content: View>: View {
     }
 }
 
-struct ProgressRow: View {
-    let label: String
-    let value: Double
-    var tint: Color = .accentColor
+struct WorkoutSummary {
+    let durationText: String
+    let subtitleText: String
+    let progress: Double
+    let state: WorkoutState
+}
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            ProgressView(value: value)
-                .tint(tint)
+struct FoodLogSummary {
+    let calories: Int
+    let macros: [MacroRingData]
+    let recommendation: String
+}
+
+struct MacroRingData: Identifiable {
+    let label: String
+    let consumed: Double
+    let target: Double
+    let color: Color
+    
+    var id: String { label }
+    
+    var progress: Double {
+        guard target > 0 else { return 0 }
+        return min(consumed / target, 1)
+    }
+    
+    var formattedValue: String {
+        "\(Int(consumed.rounded()))g"
+    }
+}
+
+struct MacroTargets {
+    let calories: Double
+    let carbs: Double
+    let protein: Double
+    let fat: Double
+}
+
+enum WorkoutState {
+    case notStarted
+    case partiallyCompleted
+    case completed
+}
+
+private extension WorkoutState {
+    var accentColor: Color {
+        switch self {
+        case .completed: return .green
+        case .partiallyCompleted: return .orange
+        case .notStarted: return .gray
+        }
+    }
+    
+    var statusLabel: String {
+        switch self {
+        case .completed: return "Completed"
+        case .partiallyCompleted: return "In progress"
+        case .notStarted: return "Not started"
         }
     }
 }
 
-struct DashboardListRow: View {
-    let title: String
-    let detail: String
-
+struct TodaysProgressCarousel: View {
+    let workoutSummary: WorkoutSummary
+    let foodSummary: FoodLogSummary
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .fontWeight(.medium)
-            Text(detail)
+        TabView {
+            WorkoutCardView(
+                durationText: workoutSummary.durationText,
+                subtitleText: workoutSummary.subtitleText,
+                progress: workoutSummary.progress,
+                state: workoutSummary.state
+            )
+            FoodLogCardView(summary: foodSummary)
+            SleepCardView()
+        }
+        .frame(height: 190)
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+        .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
+    }
+}
+
+struct WorkoutCardView: View {
+    let durationText: String
+    let subtitleText: String
+    let progress: Double
+    let state: WorkoutState
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Workout")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text(state.statusLabel)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(state.accentColor.opacity(0.15))
+                    .cornerRadius(8)
+            }
+            
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(durationText)
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text(subtitleText)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 10)
+                        .frame(width: 70, height: 70)
+                    
+                    Circle()
+                        .trim(from: 0, to: CGFloat(progress))
+                        .stroke(state.accentColor,
+                                style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 70, height: 70)
+                }
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, minHeight: 150)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(state.accentColor.opacity(0.1))
+        )
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .animation(.easeInOut, value: progress)
+    }
+}
+
+struct FoodLogCardView: View {
+    let summary: FoodLogSummary
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(summary.calories) kcal")
+                        .font(.system(size: 32, weight: .bold))
+                    Text("logged today")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 6) {
+                    ForEach(summary.macros) { macro in
+                        MacroRingView(macro: macro)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            Text(summary.recommendation)
                 .font(.caption)
+                .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .frame(maxWidth: .infinity, minHeight: 150)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.orange.opacity(0.1))
+        )
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+}
+
+struct MacroRingView: View {
+    let macro: MacroRingData
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 6)
+                    .frame(width: 36, height: 36)
+                
+                Circle()
+                    .trim(from: 0, to: CGFloat(macro.progress))
+                    .stroke(macro.color,
+                            style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 36, height: 36)
+                
+                Text("\(Int(macro.progress * 100))%")
+                    .font(.system(size: 10, weight: .bold))
+                    .fontWeight(.semibold)
+            }
+            
+            VStack(spacing: 2) {
+                Text(macro.label)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                Text(macro.formattedValue)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+struct SleepCardView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sleep")
+                .font(.title3)
+                .fontWeight(.semibold)
+            
+            Spacer()
+            
+            Text("7h sleep yesterday")
+                .font(.system(size: 28, weight: .bold))
+            
+            Text("Recommended sleep: 8h for today")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, minHeight: 150)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.blue.opacity(0.12))
+        )
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+}
+
+struct SuggestedReadsSection: View {
+    let articles: [ArticleTopic]
+    
+    var body: some View {
+        if articles.isEmpty {
+            Text("Your personalized reading list will appear here soon.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(articles) { article in
+                        NavigationLink {
+                            ArticleDetailView(article: article)
+                        } label: {
+                            SuggestedReadCard(article: article)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+}
+
+struct SuggestedReadCard: View {
+    let article: ArticleTopic
+    
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            AsyncImage(url: article.randomImageURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .clipped()
+                case .failure:
+                    Color.accentColor.opacity(0.15)
+                case .empty:
+                    Color.gray.opacity(0.1)
+                @unknown default:
+                    Color.gray.opacity(0.1)
+                }
+            }
+            .overlay(
+                LinearGradient(
+                    colors: [.black.opacity(0.7), .black.opacity(0.2)],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            )
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(article.title)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .lineLimit(2)
+                    .foregroundColor(.white)
+                Spacer()
+                HStack {
+                    Spacer()
+                    Label("Read more", systemImage: "arrow.up.forward")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .foregroundColor(.white)
+                }
+            }
+            .padding()
+        }
+        .frame(width: 240, height: 150)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 4)
+    }
+}
+
+struct ArticleTopic: Decodable, Identifiable {
+    let title: String
+    let link: String
+    let imageLinks: [String]
+    
+    var id: String { link }
+    
+    var readableLink: String {
+        link
+            .replacingOccurrences(of: ".md", with: "")
+            .replacingOccurrences(of: "-", with: " ")
+            .capitalized
+    }
+    
+    var randomImageURL: URL? {
+        guard !imageLinks.isEmpty else { return nil }
+        return imageLinks.compactMap { URL(string: $0) }.randomElement()
+    }
+    
+    var markdownResourceName: String {
+        link.replacingOccurrences(of: ".md", with: "")
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case link
+        case imageLinks = "image_links"
+    }
+    
+    static let fallback: [ArticleTopic] = [
+        ArticleTopic(
+            title: "Sodium and Potassium Balance",
+            link: "sodiumPotasium.md",
+            imageLinks: []
+        ),
+        ArticleTopic(
+            title: "Exercise and Cardiovascular Health",
+            link: "exercise.md",
+            imageLinks: []
+        ),
+        ArticleTopic(
+            title: "Stress and Hormonal Regulation",
+            link: "stress.md",
+            imageLinks: []
+        ),
+        ArticleTopic(
+            title: "Sleep Quality and Circadian Rhythm",
+            link: "sleep.md",
+            imageLinks: []
+        )
+    ]
+}
+
+struct ArticleLibrary: Decodable {
+    let topics: [ArticleTopic]
+}
+
+enum ArticleLoader {
+    private static var cachedTopics: [ArticleTopic]?
+    
+    static func featured(limit: Int) -> [ArticleTopic] {
+        let topics = allTopics()
+        return Array(topics.prefix(limit))
+    }
+    
+    static func allTopics() -> [ArticleTopic] {
+        if let cached = cachedTopics {
+            return cached
+        }
+        
+        let decoder = JSONDecoder()
+        let bundleURLs: [URL?] = [
+            Bundle.main.url(forResource: "articles", withExtension: "json", subdirectory: "Articles"),
+            Bundle.main.url(forResource: "articles", withExtension: "json")
+        ]
+        
+        for url in bundleURLs.compactMap({ $0 }) {
+            if
+                let data = try? Data(contentsOf: url),
+                let library = try? decoder.decode(ArticleLibrary.self, from: data),
+                !library.topics.isEmpty
+            {
+                cachedTopics = library.topics
+                return library.topics
+            }
+        }
+        
+        cachedTopics = ArticleTopic.fallback
+        return ArticleTopic.fallback
     }
 }
 
@@ -398,4 +900,3 @@ struct GoalsSection: View {
         return dateString
     }
 }
-

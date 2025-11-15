@@ -21,14 +21,15 @@ actor APIClient {
     static let shared = APIClient()
 
     private let tokenKey = "authToken"
+    private let defaults = SharedContainer.userDefaults
 
     private var token: String? {
-        get { UserDefaults.standard.string(forKey: tokenKey) }
+        get { defaults.string(forKey: tokenKey) }
         set {
             if let value = newValue, !value.isEmpty {
-                UserDefaults.standard.set(value, forKey: tokenKey)
+                defaults.set(value, forKey: tokenKey)
             } else {
-                UserDefaults.standard.removeObject(forKey: tokenKey)
+                defaults.removeObject(forKey: tokenKey)
             }
         }
     }

@@ -22,6 +22,9 @@
 6. [Backend Implementation](#backend-implementation)
 7. [Testing & Troubleshooting](#testing--troubleshooting)
 8. [Security Considerations](#security-considerations)
+9. [Siri Shortcuts](#siri-shortcuts)
+   - [Setup Checklist](#setup-checklist)
+   - [How to Use](#how-to-use)
 
 ---
 
@@ -700,6 +703,26 @@ journalctl -u fasterfoods-api -f | grep -i "oauth\|google\|apple"
 
 ---
 
+## Siri Shortcuts
+
+### Setup Checklist
+
+- Enable the **Siri** capability and the `group.co.fasterfoods.shared` app group on both the `FasterFoods` app target and the `FasterFoodsIntents` App Intents extension.
+- Share session data via `SharedContainer.userDefaults` (`FasterFoods/Shared/AppGroup.swift`) so the shortcut reads the same auth token as the host app.
+- Keep shortcut logic outside SwiftUI views inside `FasterFoods/Shared/ShoppingListIntentService.swift`; the service reuses `APIClient` to find/create lists and persist new items.
+- Build and embed the new App Intents extension (`FasterFoodsIntents/*`) so `FasterFoodsIntents.appex` ships inside the main app bundle. The Xcode project already copies it via the “Embed App Extensions” phase.
+- Request Siri authorization early in the app lifecycle (`FasterFoods/FasterFoodsApp.swift`) to avoid silent failures when the shortcut runs hands-free.
+
+### How to Use
+
+1. Build & run FasterFoods on a device once; confirm the Siri permission prompt appears.
+2. Open the **Shortcuts** app → tap **Add Shortcut** → search for **FasterFoods** → choose **Add Shopping Item** (backed by `AddShoppingItemIntent`).
+3. Set a custom phrase such as “Add {item} to my shopping list” and save the shortcut.
+4. Trigger Siri (“Hey Siri, add milk to my shopping list”) or run the shortcut manually. The intent invokes the same `/shopping-lists/:id/items` API and will create a default list if none exists.
+5. If Siri responds with an authentication error, simply open FasterFoods, ensure you're logged in, and rerun the shortcut so the shared token is refreshed.
+
+---
+
 ## Support & Resources
 
 ### Apple Sign In
@@ -749,4 +772,3 @@ journalctl -u fasterfoods-api -f | grep -i "oauth\|google\|apple"
 **Last Updated:** November 3, 2025  
 **Status:** Complete & Tested  
 **Maintained By:** FasterFoods Development Team
-

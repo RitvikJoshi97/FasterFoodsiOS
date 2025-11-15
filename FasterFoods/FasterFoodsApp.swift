@@ -7,6 +7,7 @@
 
 import SwiftUI
 import GoogleSignIn
+import Intents
 
 @main
 struct FasterFoodsApp: App {
@@ -18,6 +19,8 @@ struct FasterFoodsApp: App {
             let config = GIDConfiguration(clientID: clientID)
             GIDSignIn.sharedInstance.configuration = config
         }
+
+        INPreferences.requestSiriAuthorization { _ in }
     }
 
     var body: some Scene {

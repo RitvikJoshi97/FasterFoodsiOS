@@ -1,0 +1,7 @@
+The interplay between **sleep quality** and **circadian rhythm** has a strong bearing on **blood pressure regulation**, with evidence showing that poor sleep or circadian misalignment disrupts the normal 24-hour pattern of blood pressure (higher during the day, lower at night) and increases hypertension risk. :contentReference[oaicite:0]{index=0}  
+
+Subjective poor sleep quality—such as short duration, frequent awakenings or non-restorative sleep—is significantly associated with higher odds of hypertension (OR ~1.48) and elevated average systolic/diastolic blood pressure. :contentReference[oaicite:1]{index=1}  
+
+From a mechanistic viewpoint, disrupted sleep/circadian rhythm affects autonomic balance (↑ sympathetic tone, ↓ parasympathetic), hormonal control (cortisol, renin/aldosterone cycles) and sodium/volume regulation via the kidneys. For example, circadian misalignment leads to blunted nocturnal blood pressure “dip” and altered renal excretion patterns of sodium/potassium. :contentReference[oaicite:2]{index=2}  
+
+In summary: maintaining **good sleep hygiene** (regular bedtime/wake time, adequate duration), aligning behaviour with the body clock and avoiding shift-work/circadian disruption are important lifestyle measures for supporting healthy blood pressure. Key relevant papers include those on sleep quality/hypertension meta-analysis, and circadian clock gene studies in BP regulation. :contentReference[oaicite:3]{index=3}  
