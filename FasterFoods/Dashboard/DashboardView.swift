@@ -9,6 +9,8 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
+    @State private var showAddItemPopup = false
+    @State private var selectedAddItemType: AddItemType?
     
     private let workoutGoalMinutes: Double = 45
     private let macroTargets = MacroTargets(calories: 2000, carbs: 240, protein: 120, fat: 70)
@@ -23,37 +25,116 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(greeting)
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            ZStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(greeting)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Today's Progress", systemImage: "chart.bar.doc.horizontal")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        TodaysProgressCarousel(
-                            workoutSummary: workoutSummary,
-                            foodSummary: foodLogSummary
-                        )
-                        .padding(.vertical, 4)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Label("Today's Progress", systemImage: "chart.bar.doc.horizontal")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            TodaysProgressCarousel(
+                                workoutSummary: workoutSummary,
+                                foodSummary: foodLogSummary
+                            )
+                            .padding(.vertical, 4)
+                        }
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            Label("Suggested Reads", systemImage: "book.closed")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            SuggestedReadsSection(articles: featuredArticles)
+                        }
+
+                        GoalsSection()
                     }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Suggested Reads", systemImage: "book.closed")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        SuggestedReadsSection(articles: featuredArticles)
-                    }
-
-                    GoalsSection()
+                    .padding(.horizontal)
+                    .padding(.vertical, 24)
+                    .padding(.bottom, 100) // Add padding for floating button
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 24)
+                
+                if showAddItemPopup {
+                    Color.black.opacity(0.1)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                showAddItemPopup = false
+                            }
+                        }
+                }
+                
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        ZStack(alignment: .bottomTrailing) {
+                            if showAddItemPopup {
+                                AddItemPopup(isPresented: $showAddItemPopup) { itemType in
+                                    selectedAddItemType = itemType
+                                }
+                                .padding(.trailing, 0)
+                                .padding(.bottom, 70)
+                                .transition(.scale.combined(with: .opacity))
+                            }
+                            
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    showAddItemPopup.toggle()
+                                }
+                            } label: {
+                                Image(systemName: "plus")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(Color.accentColor)
+                                    .clipShape(Circle())
+                                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                            }
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
+                    }
+                }
             }
-            .navigationTitle("Dashboard")
+            .navigationTitle("FasterFoods")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                            .environmentObject(app)
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.body)
+                            .frame(width: 44, height: 44, alignment: .center)
+                    }
+                }
+            }
+            .sheet(item: $selectedAddItemType) { itemType in
+                Group {
+                    switch itemType {
+                    case .shoppingItem:
+                        AddShoppingItemSheet()
+                            .environmentObject(app)
+                    case .pantryItem:
+                        AddPantryItemSheet()
+                            .environmentObject(app)
+                    case .foodLogItem:
+                        AddFoodLogItemSheet()
+                            .environmentObject(app)
+                    case .customMetric:
+                        AddCustomMetricSheet()
+                            .environmentObject(app)
+                    }
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
         }
     }
 }
@@ -661,7 +742,7 @@ struct GoalsSection: View {
                                     RoundedRectangle(cornerRadius: 8)
                                         .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
                                 )
-                                .onChange(of: goalDescription) { newValue in
+                                .onChange(of: goalDescription) { oldValue, newValue in
                                     // Clear selected recommendation if user types manually
                                     if let selected = selectedRecommendation {
                                         let selectedText = selected.title ?? selected.description

@@ -76,7 +76,7 @@ struct FoodLogView: View {
                 didInitialize = true
             }
         }
-        .onChange(of: app.foodLoggingLevel) { newLevel in
+        .onChange(of: app.foodLoggingLevel) { oldLevel, newLevel in
             viewModel.reset(for: newLevel)
         }
         .task { await loadFoodLogIfNeeded() }

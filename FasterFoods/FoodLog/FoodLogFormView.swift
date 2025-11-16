@@ -24,14 +24,14 @@ struct FoodLogFormView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .onChange(of: viewModel.mealTime) { option in
-                    if let adjusted = Calendar.current.date(bySettingHour: hour(for: option), minute: 0, second: 0, of: mealDate) {
+                .onChange(of: viewModel.mealTime) { oldValue, newValue in
+                    if let adjusted = Calendar.current.date(bySettingHour: hour(for: newValue), minute: 0, second: 0, of: mealDate) {
                         mealDate = adjusted
                     }
                 }
                 DatePicker("", selection: $mealDate, displayedComponents: [.date, .hourAndMinute])
                     .labelsHidden()
-                    .onChange(of: mealDate) { newValue in
+                    .onChange(of: mealDate) { oldValue, newValue in
                         viewModel.adjustMealTime(basedOn: newValue)
                     }
             }

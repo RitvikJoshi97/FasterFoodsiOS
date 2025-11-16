@@ -11,7 +11,7 @@
 		422F63BF2EB960F300A83440 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 422F63BE2EB960F300A83440 /* GoogleSignInSwift */; };
 		B50000102FCB3CD800AD7420 /* AddShoppingItemIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010012FCB3CD800AD7420 /* AddShoppingItemIntent.swift */; };
 		B50000112FCB3CD800AD7420 /* ShoppingListEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010022FCB3CD800AD7420 /* ShoppingListEntity.swift */; };
-		B50000122FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010032FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift */; };
+		B50000122FCB3CD800AD7420 /* FasterFoodsShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010032FCB3CD800AD7420 /* FasterFoodsShortcuts.swift */; };
 		B50000132FCB3CD800AD7420 /* FasterFoodsIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010042FCB3CD800AD7420 /* FasterFoodsIntents.swift */; };
 		B50000142FCB3CD800AD7420 /* ShoppingListIntentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B500100A2FCB3CDC00AD7420 /* ShoppingListIntentService.swift */; };
 		B50000152FCB3CD800AD7420 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010092FCB3CDC00AD7420 /* AppGroup.swift */; };
@@ -167,7 +167,7 @@
 			children = (
 				B50010012FCB3CD800AD7420 /* AddShoppingItemIntent.swift */,
 				B50010022FCB3CD800AD7420 /* ShoppingListEntity.swift */,
-				B50010032FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift */,
+				B50010032FCB3CD800AD7420 /* FasterFoodsShortcuts.swift */,
 				B50010042FCB3CD800AD7420 /* FasterFoodsIntents.swift */,
 				B50010052FCB3CD800AD7420 /* Info.plist */,
 				B500100B2FCB3CE300AD7420 /* FasterFoodsIntents.entitlements */,
@@ -389,7 +389,7 @@
 			files = (
 				B50000102FCB3CD800AD7420 /* AddShoppingItemIntent.swift in Sources */,
 				B50000112FCB3CD800AD7420 /* ShoppingListEntity.swift in Sources */,
-				B50000122FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift in Sources */,
+				B50000122FCB3CD800AD7420 /* FasterFoodsShortcuts.swift in Sources */,
 				B50000132FCB3CD800AD7420 /* FasterFoodsIntents.swift in Sources */,
 				B50000142FCB3CD800AD7420 /* ShoppingListIntentService.swift in Sources */,
 				B50000152FCB3CD800AD7420 /* AppGroup.swift in Sources */,

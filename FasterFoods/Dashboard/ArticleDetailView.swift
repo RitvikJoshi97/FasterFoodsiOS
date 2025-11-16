@@ -95,7 +95,7 @@ struct ArticleDetailView: View {
         
         let text: String = {
             for url in possibleURLs {
-                if let contents = try? String(contentsOf: url) {
+                if let contents = try? String(contentsOf: url, encoding: .utf8) {
                     return contents
                 }
             }

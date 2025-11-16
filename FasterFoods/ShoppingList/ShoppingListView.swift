@@ -97,7 +97,7 @@ struct ShoppingListView: View {
             await loadLists(force: true)
             await loadRecommendations(force: true)
         }
-        .onChange(of: selectedListId) { newValue in
+        .onChange(of: selectedListId) { oldValue, newValue in
             if newValue == newListSentinel {
                 withAnimation { showNewListField = true }
                 focusedField = .newListName
@@ -111,12 +111,12 @@ struct ShoppingListView: View {
                 newListName = ""
             }
         }
-        .onChange(of: app.shoppingLists.map(\.id)) { ids in
-            guard let firstId = ids.first else {
+        .onChange(of: app.shoppingLists.map(\.id)) { oldIds, newIds in
+            guard let firstId = newIds.first else {
                 selectedListId = ""
                 return
             }
-            if selectedListId.isEmpty || !ids.contains(selectedListId) {
+            if selectedListId.isEmpty || !newIds.contains(selectedListId) {
                 selectedListId = firstId
             }
         }

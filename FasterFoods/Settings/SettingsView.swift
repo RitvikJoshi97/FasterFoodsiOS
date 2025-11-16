@@ -162,7 +162,7 @@ struct SettingsView: View {
                 Text("We\'ll guide you through the deletion flow once it\'s ready.")
             }
             .onAppear(perform: loadSettings)
-            .onChange(of: loggingLevel) { newValue in
+            .onChange(of: loggingLevel) { oldValue, newValue in
                 guard hasLoaded else { return }
                 if newValue == .advanced {
                     loggingLevel = previousLoggingLevel

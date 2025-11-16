@@ -35,9 +35,14 @@ struct CustomMetricsView: View {
     private func addMetric() {
         guard let metric = viewModel.makeMetric() else { return }
         Task {
-            try? await app.addCustomMetric(metric)
-            await MainActor.run {
-                viewModel.resetComposer()
+            do {
+                try await app.addCustomMetric(metric)
+                await MainActor.run {
+                    viewModel.resetComposer()
+                }
+            } catch {
+                // Silently handle errors - user can retry if needed
+                print("Error adding custom metric: \(error)")
             }
         }
     }

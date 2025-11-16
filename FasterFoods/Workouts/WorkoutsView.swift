@@ -55,7 +55,7 @@ struct WorkoutsView: View {
             viewModel.bootstrap(with: app)
             print("WorkoutsView appeared - workout items count: \(app.workoutItems.count)")
         }
-        .onChange(of: viewModel.selectedActivityID) { _ in
+        .onChange(of: viewModel.selectedActivityID) { oldValue, newValue in
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
     }

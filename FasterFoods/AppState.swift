@@ -521,7 +521,12 @@ class AppState: ObservableObject {
         await withTaskGroup(of: Void.self) { group in
             for item in unchecked {
                 group.addTask {
-                    try? await APIClient.shared.updatePantryItem(id: item.id, updates: ["checked": true])
+                    do {
+                        try await APIClient.shared.updatePantryItem(id: item.id, updates: ["checked": true])
+                    } catch {
+                        // Silently handle errors for batch operations
+                        print("Error updating pantry item \(item.id): \(error)")
+                    }
                 }
             }
         }
