@@ -7,10 +7,26 @@
 
 import SwiftUI
 
+enum TodaysProgressDestination: Identifiable, Hashable {
+    case workouts
+    case foodLog
+    case customMetrics
+    
+    var id: String {
+        switch self {
+        case .workouts: return "workouts"
+        case .foodLog: return "foodLog"
+        case .customMetrics: return "customMetrics"
+        }
+    }
+}
+
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
     @State private var showAddItemPopup = false
     @State private var selectedAddItemType: AddItemType?
+    @State private var todaysProgressDestination: TodaysProgressDestination?
+    @State private var isHeaderCompact = false
     
     private let workoutGoalMinutes: Double = 45
     private let macroTargets = MacroTargets(calories: 2000, carbs: 240, protein: 120, fat: 70)
@@ -28,6 +44,17 @@ struct DashboardView: View {
             ZStack {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
+                        Color.clear
+                            .frame(height: 0)
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: DashboardScrollOffsetPreferenceKey.self,
+                                        value: proxy.frame(in: .named("dashboardScroll")).minY
+                                    )
+                                }
+                            )
+                        
                         Text(greeting)
                             .font(.title2)
                             .fontWeight(.semibold)
@@ -39,7 +66,10 @@ struct DashboardView: View {
                                 .foregroundStyle(.primary)
                             TodaysProgressCarousel(
                                 workoutSummary: workoutSummary,
-                                foodSummary: foodLogSummary
+                                foodSummary: foodLogSummary,
+                                onWorkoutTap: { todaysProgressDestination = .workouts },
+                                onFoodLogTap: { todaysProgressDestination = .foodLog },
+                                onSleepTap: { todaysProgressDestination = .customMetrics }
                             )
                             .padding(.vertical, 4)
                         }
@@ -56,6 +86,12 @@ struct DashboardView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 24)
                     .padding(.bottom, 100) // Add padding for floating button
+                }
+                .coordinateSpace(name: "dashboardScroll")
+                .onPreferenceChange(DashboardScrollOffsetPreferenceKey.self) { offset in
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isHeaderCompact = offset < -20
+                    }
                 }
                 
                 if showAddItemPopup {
@@ -103,18 +139,6 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("FasterFoods")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                            .environmentObject(app)
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.body)
-                            .frame(width: 44, height: 44, alignment: .center)
-                    }
-                }
-            }
             .sheet(item: $selectedAddItemType) { itemType in
                 Group {
                     switch itemType {
@@ -134,6 +158,31 @@ struct DashboardView: View {
                 }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+            }
+            .navigationDestination(item: $todaysProgressDestination) { destination in
+                switch destination {
+                case .workouts:
+                    WorkoutsView(embedsInNavigationStack: false)
+                case .foodLog:
+                    FoodLogView(embedsInNavigationStack: false)
+                case .customMetrics:
+                    CustomMetricsView(embedsInNavigationStack: false)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                            .environmentObject(app)
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: isHeaderCompact ? 18 : 24, weight: .semibold))
+                            .frame(width: isHeaderCompact ? 36 : 44,
+                                   height: isHeaderCompact ? 36 : 44)
+                            .contentShape(Rectangle())
+                            .accessibilityLabel("Settings")
+                    }
+                }
             }
         }
     }
@@ -297,6 +346,14 @@ struct FoodLogSummary {
     let recommendation: String
 }
 
+private struct DashboardScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct MacroRingData: Identifiable {
     let label: String
     let consumed: Double
@@ -349,6 +406,23 @@ private extension WorkoutState {
 struct TodaysProgressCarousel: View {
     let workoutSummary: WorkoutSummary
     let foodSummary: FoodLogSummary
+    let onWorkoutTap: (() -> Void)?
+    let onFoodLogTap: (() -> Void)?
+    let onSleepTap: (() -> Void)?
+    
+    init(
+        workoutSummary: WorkoutSummary,
+        foodSummary: FoodLogSummary,
+        onWorkoutTap: (() -> Void)? = nil,
+        onFoodLogTap: (() -> Void)? = nil,
+        onSleepTap: (() -> Void)? = nil
+    ) {
+        self.workoutSummary = workoutSummary
+        self.foodSummary = foodSummary
+        self.onWorkoutTap = onWorkoutTap
+        self.onFoodLogTap = onFoodLogTap
+        self.onSleepTap = onSleepTap
+    }
     
     var body: some View {
         TabView {
@@ -356,10 +430,14 @@ struct TodaysProgressCarousel: View {
                 durationText: workoutSummary.durationText,
                 subtitleText: workoutSummary.subtitleText,
                 progress: workoutSummary.progress,
-                state: workoutSummary.state
+                state: workoutSummary.state,
+                onTap: onWorkoutTap
             )
-            FoodLogCardView(summary: foodSummary)
-            SleepCardView()
+            FoodLogCardView(
+                summary: foodSummary,
+                onTap: onFoodLogTap
+            )
+            SleepCardView(onTap: onSleepTap)
         }
         .frame(height: 190)
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
@@ -372,6 +450,21 @@ struct WorkoutCardView: View {
     let subtitleText: String
     let progress: Double
     let state: WorkoutState
+    let onTap: (() -> Void)?
+    
+    init(
+        durationText: String,
+        subtitleText: String,
+        progress: Double,
+        state: WorkoutState,
+        onTap: (() -> Void)? = nil
+    ) {
+        self.durationText = durationText
+        self.subtitleText = subtitleText
+        self.progress = progress
+        self.state = state
+        self.onTap = onTap
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -426,11 +519,25 @@ struct WorkoutCardView: View {
         )
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
         .animation(.easeInOut, value: progress)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard let onTap else { return }
+            onTap()
+        }
     }
 }
 
 struct FoodLogCardView: View {
     let summary: FoodLogSummary
+    let onTap: (() -> Void)?
+    
+    init(
+        summary: FoodLogSummary,
+        onTap: (() -> Void)? = nil
+    ) {
+        self.summary = summary
+        self.onTap = onTap
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -466,6 +573,11 @@ struct FoodLogCardView: View {
                 .fill(Color.orange.opacity(0.1))
         )
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard let onTap else { return }
+            onTap()
+        }
     }
 }
 
@@ -504,6 +616,12 @@ struct MacroRingView: View {
 }
 
 struct SleepCardView: View {
+    let onTap: (() -> Void)?
+    
+    init(onTap: (() -> Void)? = nil) {
+        self.onTap = onTap
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Sleep")
@@ -526,6 +644,11 @@ struct SleepCardView: View {
                 .fill(Color.blue.opacity(0.12))
         )
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard let onTap else { return }
+            onTap()
+        }
     }
 }
 

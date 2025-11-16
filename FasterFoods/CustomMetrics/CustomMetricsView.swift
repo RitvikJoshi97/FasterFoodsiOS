@@ -3,33 +3,44 @@ import SwiftUI
 struct CustomMetricsView: View {
     @EnvironmentObject private var app: AppState
     @StateObject private var viewModel = CustomMetricsViewModel()
+    var embedsInNavigationStack = true
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    MetricSummaryCard(stats: viewModel.summary(for: app.customMetrics))
+        Group {
+            if embedsInNavigationStack {
+                NavigationStack {
+                    content
+                }
+            } else {
+                content
+            }
+        }
+    }
 
-                    MetricComposer(viewModel: viewModel) {
-                        addMetric()
-                    }
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                MetricSummaryCard(stats: viewModel.summary(for: app.customMetrics))
 
-                    MetricSuggestions(suggestions: CustomMetricsViewModel.suggestions) { suggestion in
-                        viewModel.applySuggestion(suggestion)
-                    }
+                MetricComposer(viewModel: viewModel) {
+                    addMetric()
+                }
 
-                    MetricHistorySection(metrics: app.customMetrics) { id in
-                        Task {
-                            try? await app.deleteCustomMetric(id: id)
-                        }
+                MetricSuggestions(suggestions: CustomMetricsViewModel.suggestions) { suggestion in
+                    viewModel.applySuggestion(suggestion)
+                }
+
+                MetricHistorySection(metrics: app.customMetrics) { id in
+                    Task {
+                        try? await app.deleteCustomMetric(id: id)
                     }
                 }
-                .padding(.vertical, 24)
-                .padding(.horizontal, 20)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("Custom metrics")
+            .padding(.vertical, 24)
+            .padding(.horizontal, 20)
         }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle("Custom metrics")
     }
 
     private func addMetric() {

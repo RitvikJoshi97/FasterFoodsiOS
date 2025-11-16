@@ -243,18 +243,12 @@ struct HomeView: View {
         TabView {
             DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "speedometer") }
+            CalendarView()
+                .tabItem { Label("Calendar", systemImage: "calendar") }
             ShoppingListView()
                 .tabItem { Label("Shopping", systemImage: "cart") }
             PantryView()
                 .tabItem { Label("Pantry", systemImage: "archivebox") }
-            FoodLogView()
-                .tabItem { Label("Food Log", systemImage: "fork.knife") }
-            WorkoutsView()
-                .tabItem { Label("Workouts", systemImage: "figure.run") }
-            CustomMetricsView()
-                .tabItem { Label("Metrics", systemImage: "chart.bar") }
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
     }
 }
@@ -557,4 +551,3 @@ extension View {
         }
     }
 }
-

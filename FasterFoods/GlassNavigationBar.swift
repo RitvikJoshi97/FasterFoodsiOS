@@ -32,5 +32,21 @@ enum GlassNavigationBar {
         navigationBar.compactAppearance = appearance
         navigationBar.scrollEdgeAppearance = appearance
         navigationBar.tintColor = UIColor.label
+
+        let tabAppearance = UITabBarAppearance()
+        tabAppearance.configureWithTransparentBackground()
+        tabAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+        tabAppearance.backgroundColor = appearance.backgroundColor
+        tabAppearance.shadowColor = .clear
+        tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor.label
+        tabAppearance.inlineLayoutAppearance.selected.iconColor = UIColor.label
+        tabAppearance.compactInlineLayoutAppearance.selected.iconColor = UIColor.label
+        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.label]
+        
+        let tabBar = UITabBar.appearance()
+        tabBar.standardAppearance = tabAppearance
+        tabBar.scrollEdgeAppearance = tabAppearance
+        tabBar.tintColor = UIColor.label
+        tabBar.isTranslucent = true
     }
 }

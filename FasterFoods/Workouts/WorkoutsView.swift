@@ -4,52 +4,17 @@ struct WorkoutsView: View {
     @EnvironmentObject private var app: AppState
     @StateObject private var viewModel = WorkoutsViewModel()
     @State private var isLoadingRecommendations = false
+    var embedsInNavigationStack = true
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    WorkoutComposer(
-                        viewModel: viewModel,
-                        onSubmit: addWorkout
-                    )
+        Group {
+            if embedsInNavigationStack {
+                NavigationStack {
+                    listContent
                 }
-
-                Section {
-                    WorkoutSuggestionsSection(
-                        quickPicks: viewModel.quickPicks,
-                        recommendations: app.workoutRecommendations,
-                        isLoadingRecommendations: isLoadingRecommendations,
-                        onQuickPick: viewModel.applyQuickPick(_:),
-                        onRefreshRecommendations: refreshRecommendations,
-                        onDismissRecommendation: { id in
-                            Task {
-                                try? await app.sendWorkoutRecommendationFeedback(id: id, action: .dismissed)
-                            }
-                        }
-                    )
-                }
-
-                Section {
-                    if !app.workoutItems.isEmpty {
-                        WorkoutHistoryList(items: app.workoutItems,
-                                           activities: viewModel.activities,
-                                           onDelete: { id in
-                                               Task {
-                                                   try? await app.deleteWorkout(id: id)
-                                               }
-                                           })
-                    } else {
-                        Text("No workouts yet. Log your first workout above!")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 12)
-                    }
-                }
+            } else {
+                listContent
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Workouts")
         }
         .onAppear {
             viewModel.bootstrap(with: app)
@@ -58,6 +23,53 @@ struct WorkoutsView: View {
         .onChange(of: viewModel.selectedActivityID) { oldValue, newValue in
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
+    }
+
+    @ViewBuilder
+    private var listContent: some View {
+        List {
+            Section {
+                WorkoutComposer(
+                    viewModel: viewModel,
+                    onSubmit: addWorkout
+                )
+            }
+
+            Section {
+                WorkoutSuggestionsSection(
+                    quickPicks: viewModel.quickPicks,
+                    recommendations: app.workoutRecommendations,
+                    isLoadingRecommendations: isLoadingRecommendations,
+                    onQuickPick: viewModel.applyQuickPick(_:),
+                    onRefreshRecommendations: refreshRecommendations,
+                    onDismissRecommendation: { id in
+                        Task {
+                            try? await app.sendWorkoutRecommendationFeedback(id: id, action: .dismissed)
+                        }
+                    }
+                )
+            }
+
+            Section {
+                if !app.workoutItems.isEmpty {
+                    WorkoutHistoryList(items: app.workoutItems,
+                                       activities: viewModel.activities,
+                                       onDelete: { id in
+                                           Task {
+                                               try? await app.deleteWorkout(id: id)
+                                           }
+                                       })
+                } else {
+                    Text("No workouts yet. Log your first workout above!")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 12)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Workouts")
     }
 
     private func addWorkout() {

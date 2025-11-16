@@ -18,6 +18,7 @@ struct FoodLogView: View {
     @State private var dismissingRecommendationId: String?
     @State private var alertMessage: String?
     @State private var didInitialize = false
+    var embedsInNavigationStack = true
 
     private let staticSuggestions = [
         "Oatmeal", "Greek Yogurt", "Salad", "Grilled Chicken", "Salmon",
@@ -25,50 +26,14 @@ struct FoodLogView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    FoodLogFormView(
-                        viewModel: viewModel,
-                        loggingLevel: app.foodLoggingLevel,
-                        mealDate: $mealDate,
-                        isSubmitting: isSubmitting,
-                        onSubmit: logMeal
-                    )
+        Group {
+            if embedsInNavigationStack {
+                NavigationStack {
+                    listContent
                 }
-
-                Section {
-                    FoodLogSuggestionsView(
-                        staticSuggestions: staticSuggestions,
-                        aiSuggestions: app.foodLogRecommendations,
-                        isLoading: isLoadingRecommendations,
-                        onRefresh: { Task { await loadRecommendations(force: true) } },
-                        onSelectSuggestion: viewModel.applySuggestion,
-                        onSelectRecommendation: { recommendation in
-                            selectedRecommendation = recommendation
-                        }
-                    )
-                    if let recommendationsError,
-                       !recommendationsError.isEmpty {
-                        Text(recommendationsError)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Section(header: Text("Food History")) {
-                    if isLoading {
-                        ProgressView("Loading meals…")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else {
-                        FoodLogHistoryView(items: app.foodLogItems) { item in
-                            Task { await delete(item) }
-                        }
-                    }
-                }
+            } else {
+                listContent
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Food Log")
         }
         .onAppear {
             if !didInitialize {
@@ -81,10 +46,6 @@ struct FoodLogView: View {
         }
         .task { await loadFoodLogIfNeeded() }
         .task { await loadRecommendationsIfNeeded() }
-        .refreshable {
-            await loadFoodLog(force: true)
-            await loadRecommendations(force: true)
-        }
         .alert("Something went wrong", isPresented: Binding<Bool>(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
@@ -112,6 +73,57 @@ struct FoodLogView: View {
                 Spacer()
                 Button("Done") { hideKeyboard() }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var listContent: some View {
+        List {
+            Section {
+                FoodLogFormView(
+                    viewModel: viewModel,
+                    loggingLevel: app.foodLoggingLevel,
+                    mealDate: $mealDate,
+                    isSubmitting: isSubmitting,
+                    onSubmit: logMeal
+                )
+            }
+
+            Section {
+                FoodLogSuggestionsView(
+                    staticSuggestions: staticSuggestions,
+                    aiSuggestions: app.foodLogRecommendations,
+                    isLoading: isLoadingRecommendations,
+                    onRefresh: { Task { await loadRecommendations(force: true) } },
+                    onSelectSuggestion: viewModel.applySuggestion,
+                    onSelectRecommendation: { recommendation in
+                        selectedRecommendation = recommendation
+                    }
+                )
+                if let recommendationsError,
+                   !recommendationsError.isEmpty {
+                    Text(recommendationsError)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section(header: Text("Food History")) {
+                if isLoading {
+                    ProgressView("Loading meals…")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    FoodLogHistoryView(items: app.foodLogItems) { item in
+                        Task { await delete(item) }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Food Log")
+        .refreshable {
+            await loadFoodLog(force: true)
+            await loadRecommendations(force: true)
         }
     }
 
