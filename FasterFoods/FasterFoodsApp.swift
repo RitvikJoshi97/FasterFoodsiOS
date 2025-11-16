@@ -19,6 +19,7 @@ struct FasterFoodsApp: App {
             let config = GIDConfiguration(clientID: clientID)
             GIDSignIn.sharedInstance.configuration = config
         }
+        GlassNavigationBar.apply()
 
         INPreferences.requestSiriAuthorization { _ in }
     }

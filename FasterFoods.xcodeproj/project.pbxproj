@@ -11,7 +11,7 @@
 		422F63BF2EB960F300A83440 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 422F63BE2EB960F300A83440 /* GoogleSignInSwift */; };
 		B50000102FCB3CD800AD7420 /* AddShoppingItemIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010012FCB3CD800AD7420 /* AddShoppingItemIntent.swift */; };
 		B50000112FCB3CD800AD7420 /* ShoppingListEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010022FCB3CD800AD7420 /* ShoppingListEntity.swift */; };
-		B50000122FCB3CD800AD7420 /* FasterFoodsShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010032FCB3CD800AD7420 /* FasterFoodsShortcuts.swift */; };
+		B50000122FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010032FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift */; };
 		B50000132FCB3CD800AD7420 /* FasterFoodsIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010042FCB3CD800AD7420 /* FasterFoodsIntents.swift */; };
 		B50000142FCB3CD800AD7420 /* ShoppingListIntentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B500100A2FCB3CDC00AD7420 /* ShoppingListIntentService.swift */; };
 		B50000152FCB3CD800AD7420 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010092FCB3CDC00AD7420 /* AppGroup.swift */; };
@@ -62,9 +62,9 @@
 		421EA8832E45607000C54B3B /* FasterFoods.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FasterFoods.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		421EA8902E45607100C54B3B /* FasterFoodsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FasterFoodsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		421EA89A2E45607100C54B3B /* FasterFoodsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FasterFoodsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B50010012FCB3CD800AD7420 /* AddShoppingItemIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShoppingItemIntent.swift; sourceTree = "<group>"; };
-		B50010022FCB3CD800AD7420 /* ShoppingListEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListEntity.swift; sourceTree = "<group>"; };
-		B50010032FCB3CD800AD7420 /* FasterFoodsShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FasterFoodsShortcuts.swift; sourceTree = "<group>"; };
+		B50010012FCB3CD800AD7420 /* AddShoppingItemIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddShoppingItemIntent.swift; path = FasterFoods/Shortcuts/AddShoppingItemIntent.swift; sourceTree = SOURCE_ROOT; };
+		B50010022FCB3CD800AD7420 /* ShoppingListEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShoppingListEntity.swift; path = FasterFoods/Shortcuts/ShoppingListEntity.swift; sourceTree = SOURCE_ROOT; };
+		B50010032FCB3CD800AD7420 /* FasterFoodsShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FasterFoodsShortcuts.swift; path = FasterFoods/Shortcuts/FasterFoodsShortcuts.swift; sourceTree = SOURCE_ROOT; };
 		B50010042FCB3CD800AD7420 /* FasterFoodsIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FasterFoodsIntents.swift; sourceTree = "<group>"; };
 		B50010052FCB3CD800AD7420 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B50010062FCB3CD800AD7420 /* FasterFoodsIntents.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FasterFoodsIntents.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -167,7 +167,7 @@
 			children = (
 				B50010012FCB3CD800AD7420 /* AddShoppingItemIntent.swift */,
 				B50010022FCB3CD800AD7420 /* ShoppingListEntity.swift */,
-				B50010032FCB3CD800AD7420 /* FasterFoodsShortcuts.swift */,
+				B50010032FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift */,
 				B50010042FCB3CD800AD7420 /* FasterFoodsIntents.swift */,
 				B50010052FCB3CD800AD7420 /* Info.plist */,
 				B500100B2FCB3CE300AD7420 /* FasterFoodsIntents.entitlements */,
@@ -389,7 +389,7 @@
 			files = (
 				B50000102FCB3CD800AD7420 /* AddShoppingItemIntent.swift in Sources */,
 				B50000112FCB3CD800AD7420 /* ShoppingListEntity.swift in Sources */,
-				B50000122FCB3CD800AD7420 /* FasterFoodsShortcuts.swift in Sources */,
+				B50000122FCB3CD800AD7420 /* FasterFoods/FasterFoodsShortcuts.swift in Sources */,
 				B50000132FCB3CD800AD7420 /* FasterFoodsIntents.swift in Sources */,
 				B50000142FCB3CD800AD7420 /* ShoppingListIntentService.swift in Sources */,
 				B50000152FCB3CD800AD7420 /* AppGroup.swift in Sources */,
@@ -547,11 +547,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = FasterFoods/FasterFoods.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = UN57F338LT;
+				DEVELOPMENT_TEAM = UN57F338LT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FasterFoods/Info.plist;
@@ -571,7 +570,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = co.uk.ritvik.FasterFoods;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "FasterFoods Dev";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -589,11 +587,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = FasterFoods/FasterFoods.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = UN57F338LT;
+				DEVELOPMENT_TEAM = UN57F338LT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FasterFoods/Info.plist;
@@ -613,7 +610,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = co.uk.ritvik.FasterFoods;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "FasterFoods Dev";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -706,11 +702,10 @@
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CODE_SIGN_ENTITLEMENTS = FasterFoodsIntents/FasterFoodsIntents.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = UN57F338LT;
+				DEVELOPMENT_TEAM = UN57F338LT;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FasterFoodsIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -723,7 +718,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = co.uk.ritvik.FasterFoods.Intents;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "FasterFoods Intents Dev";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -747,11 +741,10 @@
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CODE_SIGN_ENTITLEMENTS = FasterFoodsIntents/FasterFoodsIntents.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = UN57F338LT;
+				DEVELOPMENT_TEAM = UN57F338LT;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FasterFoodsIntents/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -764,7 +757,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = co.uk.ritvik.FasterFoods.Intents;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "FasterFoods Intents Dev";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

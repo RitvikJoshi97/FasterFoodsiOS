@@ -123,6 +123,7 @@ final class WorkoutsViewModel: ObservableObject {
         _selectedCategoryID = Published(initialValue: activities.first?.categories.first?.id ?? "")
         isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        ensureDefaultOptionValues()
     }
 
     func bootstrap(with app: AppState) {
@@ -230,11 +231,25 @@ final class WorkoutsViewModel: ObservableObject {
         } else if selectedCategoryID.isEmpty {
             selectedCategoryID = firstCategoryID
         }
+        ensureDefaultOptionValues()
     }
 
     private func handleCategoryChange(isFromQuickPick: Bool) {
         if !isFromQuickPick {
             parameterValues = [:]
+        }
+        ensureDefaultOptionValues()
+    }
+
+    private func ensureDefaultOptionValues() {
+        guard let parameters = selectedCategory?.parameters else { return }
+        for parameter in parameters {
+            guard case let .options(options) = parameter.kind,
+                  let first = options.first else { continue }
+            let currentValue = parameterValues[parameter.id]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if currentValue.isEmpty {
+                parameterValues[parameter.id] = first
+            }
         }
     }
 }
