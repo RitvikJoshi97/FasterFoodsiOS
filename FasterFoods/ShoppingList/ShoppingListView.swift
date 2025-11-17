@@ -91,6 +91,7 @@ struct ShoppingListView: View {
             shoppingContent
                 .navigationTitle("Shopping List")
         }
+        .glassNavigationBarStyle()
         .task { await loadListsIfNeeded() }
         .task { await loadRecommendationsIfNeeded() }
         .refreshable {

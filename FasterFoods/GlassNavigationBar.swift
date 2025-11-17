@@ -9,13 +9,15 @@ import SwiftUI
 
 enum GlassNavigationBar {
     static func apply() {
+        guard #unavailable(iOS 16) else { return }
+
         let appearance = UINavigationBarAppearance()
         appearance.configureWithTransparentBackground()
         appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
         appearance.backgroundColor = UIColor { trait in
             trait.userInterfaceStyle == .dark
-            ? UIColor.black.withAlphaComponent(0.28)
-            : UIColor.white.withAlphaComponent(0.45)
+            ? UIColor.black.withAlphaComponent(0.32)
+            : UIColor.white.withAlphaComponent(0.4)
         }
         appearance.shadowColor = .clear
         appearance.titleTextAttributes = [
@@ -38,15 +40,26 @@ enum GlassNavigationBar {
         tabAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
         tabAppearance.backgroundColor = appearance.backgroundColor
         tabAppearance.shadowColor = .clear
-        tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor.label
-        tabAppearance.inlineLayoutAppearance.selected.iconColor = UIColor.label
-        tabAppearance.compactInlineLayoutAppearance.selected.iconColor = UIColor.label
-        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.label]
-        
+
         let tabBar = UITabBar.appearance()
         tabBar.standardAppearance = tabAppearance
         tabBar.scrollEdgeAppearance = tabAppearance
         tabBar.tintColor = UIColor.label
         tabBar.isTranslucent = true
+    }
+}
+
+private struct GlassNavigationBarModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(nil, for: .navigationBar)
+    }
+}
+
+extension View {
+    func glassNavigationBarStyle() -> some View {
+        modifier(GlassNavigationBarModifier())
     }
 }

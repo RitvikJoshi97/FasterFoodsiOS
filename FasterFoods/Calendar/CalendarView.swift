@@ -5,8 +5,6 @@ struct CalendarView: View {
     @State private var displayedMonth: Date = Date()
     @State private var selectedDate: Date = Date()
     @State private var isWeekFocused = false
-    @State private var showAddItemPopup = false
-    @State private var selectedAddItemType: AddItemType?
     @State private var monthDragOffset: CGFloat = 0
     @State private var weekDragOffset: CGFloat = 0
     @State private var isMonthTransitioning = false
@@ -26,57 +24,23 @@ struct CalendarView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 28) {
-                        chromeHeader
-                        weekdayHeader
-                        calendarSection
-                        if isWeekFocused {
-                            dayAgenda
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 140)
-                }
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
-
-                if showAddItemPopup {
-                    Color.black.opacity(0.12)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                showAddItemPopup = false
-                            }
-                        }
-                }
-
-                floatingControls
-            }
-            .sheet(item: $selectedAddItemType) { itemType in
-                Group {
-                    switch itemType {
-                    case .shoppingItem:
-                        AddShoppingItemSheet()
-                            .environmentObject(app)
-                    case .pantryItem:
-                        AddPantryItemSheet()
-                            .environmentObject(app)
-                    case .foodLogItem:
-                        AddFoodLogItemSheet()
-                            .environmentObject(app)
-                    case .customMetric:
-                        AddCustomMetricSheet()
-                            .environmentObject(app)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    chromeHeader
+                    weekdayHeader
+                    calendarSection
+                    if isWeekFocused {
+                        dayAgenda
                     }
                 }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 60)
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
         }
+        .glassNavigationBarStyle()
     }
 }
 
@@ -325,47 +289,6 @@ private extension CalendarView {
     }
 }
 
-// MARK: - Floating Controls
-
-private extension CalendarView {
-    var floatingControls: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                plusMenuOverlay
-            }
-        }
-    }
-
-    var plusMenuOverlay: some View {
-        ZStack(alignment: .bottomTrailing) {
-            if showAddItemPopup {
-                AddItemPopup(isPresented: $showAddItemPopup) { item in
-                    selectedAddItemType = item
-                }
-                .padding(.trailing, 0)
-                .padding(.bottom, 70)
-                .transition(.scale.combined(with: .opacity))
-            }
-
-            Button {
-                toggleAddMenu()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(Color.accentColor)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 6)
-            }
-        }
-        .padding(.trailing, 20)
-        .padding(.bottom, 20)
-    }
-}
-
 // MARK: - Helpers
 
 private extension CalendarView {
@@ -588,12 +511,6 @@ private extension CalendarView {
             displayedMonth = Date()
             selectedDate = Date()
             isWeekFocused = false
-        }
-    }
-
-    func toggleAddMenu() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            showAddItemPopup.toggle()
         }
     }
 

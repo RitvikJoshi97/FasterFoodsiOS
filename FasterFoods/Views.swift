@@ -136,6 +136,7 @@ struct LoginView: View {
             }
             .padding()
         }
+        .glassNavigationBarStyle()
     }
 
     @MainActor
@@ -237,19 +238,8 @@ struct LoginView: View {
 }
 
 struct HomeView: View {
-    @EnvironmentObject var app: AppState
-
     var body: some View {
-        TabView {
-            DashboardView()
-                .tabItem { Label("Dashboard", systemImage: "speedometer") }
-            CalendarView()
-                .tabItem { Label("Calendar", systemImage: "calendar") }
-            ShoppingListView()
-                .tabItem { Label("Shopping", systemImage: "cart") }
-            PantryView()
-                .tabItem { Label("Pantry", systemImage: "archivebox") }
-        }
+        RootTabShell()
     }
 }
 

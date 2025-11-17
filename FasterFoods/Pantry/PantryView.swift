@@ -84,6 +84,7 @@ struct PantryView: View {
             pantryContent
                 .navigationTitle("Pantry")
         }
+        .glassNavigationBarStyle()
         .task { await loadPantryIfNeeded() }
         .task { await loadPantryRecommendationsIfNeeded() }
         .refreshable {

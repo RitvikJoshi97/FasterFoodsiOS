@@ -23,8 +23,6 @@ enum TodaysProgressDestination: Identifiable, Hashable {
 
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
-    @State private var showAddItemPopup = false
-    @State private var selectedAddItemType: AddItemType?
     @State private var todaysProgressDestination: TodaysProgressDestination?
     @State private var isHeaderCompact = false
     
@@ -41,124 +39,58 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        Color.clear
-                            .frame(height: 0)
-                            .background(
-                                GeometryReader { proxy in
-                                    Color.clear.preference(
-                                        key: DashboardScrollOffsetPreferenceKey.self,
-                                        value: proxy.frame(in: .named("dashboardScroll")).minY
-                                    )
-                                }
-                            )
-                        
-                        Text(greeting)
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("Today's Progress", systemImage: "chart.bar.doc.horizontal")
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            TodaysProgressCarousel(
-                                workoutSummary: workoutSummary,
-                                foodSummary: foodLogSummary,
-                                onWorkoutTap: { todaysProgressDestination = .workouts },
-                                onFoodLogTap: { todaysProgressDestination = .foodLog },
-                                onSleepTap: { todaysProgressDestination = .customMetrics }
-                            )
-                            .padding(.vertical, 4)
-                        }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("Suggested Reads", systemImage: "book.closed")
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            SuggestedReadsSection(articles: featuredArticles)
-                        }
-
-                        GoalsSection()
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 24)
-                    .padding(.bottom, 100) // Add padding for floating button
-                }
-                .coordinateSpace(name: "dashboardScroll")
-                .onPreferenceChange(DashboardScrollOffsetPreferenceKey.self) { offset in
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        isHeaderCompact = offset < -20
-                    }
-                }
-                
-                if showAddItemPopup {
-                    Color.black.opacity(0.1)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                showAddItemPopup = false
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Color.clear
+                        .frame(height: 0)
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: DashboardScrollOffsetPreferenceKey.self,
+                                    value: proxy.frame(in: .named("dashboardScroll")).minY
+                                )
                             }
-                        }
-                }
-                
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        ZStack(alignment: .bottomTrailing) {
-                            if showAddItemPopup {
-                                AddItemPopup(isPresented: $showAddItemPopup) { itemType in
-                                    selectedAddItemType = itemType
-                                }
-                                .padding(.trailing, 0)
-                                .padding(.bottom, 70)
-                                .transition(.scale.combined(with: .opacity))
-                            }
-                            
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    showAddItemPopup.toggle()
-                                }
-                            } label: {
-                                Image(systemName: "plus")
-                                    .font(.title2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .frame(width: 56, height: 56)
-                                    .background(Color.accentColor)
-                                    .clipShape(Circle())
-                                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                            }
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 20)
+                        )
+                    
+                    Text(greeting)
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Today's Progress", systemImage: "chart.bar.doc.horizontal")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        TodaysProgressCarousel(
+                            workoutSummary: workoutSummary,
+                            foodSummary: foodLogSummary,
+                            onWorkoutTap: { todaysProgressDestination = .workouts },
+                            onFoodLogTap: { todaysProgressDestination = .foodLog },
+                            onSleepTap: { todaysProgressDestination = .customMetrics }
+                        )
+                        .padding(.vertical, 4)
                     }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Suggested Reads", systemImage: "book.closed")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        SuggestedReadsSection(articles: featuredArticles)
+                    }
+
+                    GoalsSection()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 24)
+                .padding(.bottom, 36)
+            }
+            .coordinateSpace(name: "dashboardScroll")
+            .onPreferenceChange(DashboardScrollOffsetPreferenceKey.self) { offset in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isHeaderCompact = offset < -20
                 }
             }
             .navigationTitle("FasterFoods")
-            .sheet(item: $selectedAddItemType) { itemType in
-                Group {
-                    switch itemType {
-                    case .shoppingItem:
-                        AddShoppingItemSheet()
-                            .environmentObject(app)
-                    case .pantryItem:
-                        AddPantryItemSheet()
-                            .environmentObject(app)
-                    case .foodLogItem:
-                        AddFoodLogItemSheet()
-                            .environmentObject(app)
-                    case .customMetric:
-                        AddCustomMetricSheet()
-                            .environmentObject(app)
-                    }
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
             .navigationDestination(item: $todaysProgressDestination) { destination in
                 switch destination {
                 case .workouts:
@@ -185,6 +117,7 @@ struct DashboardView: View {
                 }
             }
         }
+        .glassNavigationBarStyle()
     }
 }
 
