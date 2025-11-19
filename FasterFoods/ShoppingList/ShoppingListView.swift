@@ -22,7 +22,11 @@ struct ShoppingListView: View {
     @State private var dismissingRecommendationId: String?
     @State private var usingRecommendationId: String?
     @State private var selectedRecommendation: ShoppingRecommendation?
+    @State private var collapsedListIds: Set<String> = []
+    @State private var listPendingDeletion: ShoppingList?
     @FocusState private var focusedField: Field?
+    @State private var showFullSuggestionList: Bool = false
+    @State private var suggestionExpansionTask: Task<Void, Never>?
 
     private let commonSuggestions = [
         "Milk", "Eggs", "Bread", "Chicken", "Tomatoes",
@@ -48,6 +52,7 @@ struct ShoppingListView: View {
     ]
 
     private let newListSentinel = "__new_list__"
+    private let collapsedSuggestionChipLimit = 4
 
     private enum Field: Hashable {
         case itemName
@@ -77,6 +82,29 @@ struct ShoppingListView: View {
         )
     }
 
+    private var collapsedCommonSuggestions: [String] {
+        Array(commonSuggestions.prefix(collapsedSuggestionChipLimit))
+    }
+
+    private var additionalCommonSuggestions: [String] {
+        Array(commonSuggestions.dropFirst(collapsedCommonSuggestions.count))
+    }
+
+    private var collapsedRecommendationSuggestions: [ShoppingRecommendation] {
+        Array(app.shoppingRecommendations.prefix(max(0, collapsedSuggestionChipLimit - collapsedCommonSuggestions.count)))
+    }
+
+    private var additionalRecommendationSuggestions: [ShoppingRecommendation] {
+        Array(app.shoppingRecommendations.dropFirst(collapsedRecommendationSuggestions.count))
+    }
+
+    private var suggestionRevealTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .move(edge: .top)),
+            removal: .opacity.combined(with: .move(edge: .top))
+        )
+    }
+
     private var unitSelection: Binding<String> {
         Binding {
             let trimmed = newItemUnit.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -84,6 +112,36 @@ struct ShoppingListView: View {
         } set: { newValue in
             newItemUnit = newValue
         }
+    }
+
+    private var isSuperQuickMode: Bool {
+        newItemName.contains(",")
+    }
+
+    private var parsedItemNames: [String] {
+        let tokens = newItemName
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return tokens.enumerated().map { index, value in
+            guard index > 0 else { return value }
+            guard let first = value.first else { return value }
+            let capitalizedFirst = String(first).uppercased()
+            let remainder = value.dropFirst()
+            return capitalizedFirst + remainder
+        }
+    }
+
+    private var hasValidItemInput: Bool {
+        if isSuperQuickMode {
+            return !parsedItemNames.isEmpty
+        }
+        return !newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var shouldShowQuickAddDetails: Bool {
+        hasValidItemInput || focusedField != nil
     }
 
     var body: some View {
@@ -125,6 +183,28 @@ struct ShoppingListView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(alertMessage ?? "Please try again later.")
+        }
+        .confirmationDialog("Delete List?", isPresented: Binding(
+            get: { listPendingDeletion != nil },
+            set: { if !$0 { listPendingDeletion = nil } }
+        )) {
+            Button(role: .destructive) {
+                if let list = listPendingDeletion {
+                    Task { await deleteList(list) }
+                }
+                listPendingDeletion = nil
+            } label: {
+                if let list = listPendingDeletion {
+                    Text("Delete \"\(list.name)\"")
+                } else {
+                    Text("Delete List")
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                listPendingDeletion = nil
+            }
+        } message: {
+            Text("This will remove the entire list and its items.")
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -188,6 +268,10 @@ struct ShoppingListView: View {
             ForEach(app.shoppingLists) { list in
                 shoppingSection(for: list)
             }
+            Color.clear
+                .frame(height: 32)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
         }
         .listStyle(.insetGrouped)
         .interactiveKeyboardDismiss()
@@ -195,74 +279,102 @@ struct ShoppingListView: View {
 
     @ViewBuilder
     private var quickAddSection: some View {
-        Section("Quick Add") {
+        Section {
             VStack(spacing: 12) {
                 TextField("Item name", text: $newItemName)
                     .focused($focusedField, equals: .itemName)
 
-                HStack {
-                    TextField("Quantity", text: $newItemQuantity)
-                        .keyboardType(.numbersAndPunctuation)
-                        .focused($focusedField, equals: .quantity)
-                    Picker("Unit", selection: unitSelection) {
-                        ForEach(commonUnits, id: \.self) { option in
-                            Text(option).tag(option)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-
-                HStack {
-                    Text("List")
-                    Spacer()
-                    if app.shoppingLists.isEmpty {
-                        Text("Default")
-                            .foregroundStyle(.blue)
-                    } else {
-                        Picker("List", selection: $selectedListId) {
-                            ForEach(app.shoppingLists) { list in
-                                Text(list.name).tag(list.id)
+                if shouldShowQuickAddDetails {
+                    if !isSuperQuickMode {
+                        HStack {
+                            TextField("Quantity", text: $newItemQuantity)
+                                .keyboardType(.numbersAndPunctuation)
+                                .focused($focusedField, equals: .quantity)
+                            Picker("Unit", selection: unitSelection) {
+                                ForEach(commonUnits, id: \.self) { option in
+                                    Text(option).tag(option)
+                                }
                             }
-                            Label("Add new list", systemImage: "plus")
-                                .tag(newListSentinel)
+                            .pickerStyle(.menu)
                         }
-                        .pickerStyle(.menu)
                     }
-                }
 
-                if showNewListField {
                     HStack {
-                        TextField("New list name", text: $newListName)
-                            .focused($focusedField, equals: .newListName)
-                        Button("Cancel") {
-                            withAnimation {
-                                showNewListField = false
+                        Text("List")
+                        Spacer()
+                        if app.shoppingLists.isEmpty {
+                            Text("Default")
+                                .foregroundStyle(.blue)
+                        } else {
+                            Picker("List", selection: $selectedListId) {
+                                ForEach(app.shoppingLists) { list in
+                                    Text(list.name).tag(list.id)
+                                }
+                                Label("Add new list", systemImage: "plus")
+                                    .tag(newListSentinel)
                             }
-                            newListName = ""
-                            if let first = app.shoppingLists.first?.id {
-                                selectedListId = first
-                            } else {
-                                selectedListId = newListSentinel
-                            }
-                            focusedField = nil
+                            .pickerStyle(.menu)
                         }
-                        .buttonStyle(.bordered)
                     }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+
+                    if showNewListField {
+                        HStack {
+                            TextField("New list name", text: $newListName)
+                                .focused($focusedField, equals: .newListName)
+                            Button("Cancel") {
+                                withAnimation {
+                                    showNewListField = false
+                                }
+                                newListName = ""
+                                if let first = app.shoppingLists.first?.id {
+                                    selectedListId = first
+                                } else {
+                                    selectedListId = newListSentinel
+                                }
+                                focusedField = nil
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
 
                 Button {
+                    HapticSoundPlayer.shared.playPrimaryTap()
                     Task { await addItem() }
                 } label: {
                     if isAddingItem {
                         ProgressView()
                     } else {
-                        Label("Add Item", systemImage: "plus")
+                        Label {
+                            Text(isSuperQuickMode ? "+ Add Items" : "+ Add Item")
+                        } icon: {
+                            Image(systemName: "plus")
+                        }
                             .frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!canAddItem || isAddingItem)
+            }
+            .animation(.easeInOut(duration: 0.2), value: shouldShowQuickAddDetails)
+            .onChange(of: shouldShowQuickAddDetails) { isVisible in
+                guard !isVisible else { return }
+                if showNewListField {
+                    withAnimation {
+                        showNewListField = false
+                    }
+                }
+                if selectedListId == newListSentinel, let first = app.shoppingLists.first?.id {
+                    selectedListId = first
+                }
+                newListName = ""
+            }
+        } header: {
+            if isSuperQuickMode {
+                Label("Super Quick Mode", systemImage: "bolt.fill")
+            } else {
+                Text("Quick Add")
             }
         }
     }
@@ -287,17 +399,42 @@ struct ShoppingListView: View {
                         .accessibilityLabel("Refresh suggestions")
                     }
                 }
+                .animation(.none, value: showFullSuggestionList)
 
                 ChipFlow(horizontalSpacing: 8, verticalSpacing: 8) {
-                    ForEach(commonSuggestions, id: \.self) { suggestion in
+                    ForEach(collapsedCommonSuggestions, id: \.self) { suggestion in
                         suggestionChip(title: suggestion) {
                             applySuggestion(suggestion)
                         }
                     }
-                    ForEach(app.shoppingRecommendations) { recommendation in
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
+
+                    if showFullSuggestionList {
+                        ForEach(additionalCommonSuggestions, id: \.self) { suggestion in
+                            suggestionChip(title: suggestion) {
+                                applySuggestion(suggestion)
+                            }
+                            .transition(suggestionRevealTransition)
+                        }
+                    }
+
+                    ForEach(collapsedRecommendationSuggestions) { recommendation in
                         aiSuggestionChip(recommendation)
                     }
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
+
+                    if showFullSuggestionList {
+                        ForEach(additionalRecommendationSuggestions) { recommendation in
+                            aiSuggestionChip(recommendation)
+                                .transition(suggestionRevealTransition)
+                        }
+                    }
                 }
+                .animation(.easeInOut(duration: 0.25), value: showFullSuggestionList)
 
                 if let recommendationsError {
                     Text(recommendationsError)
@@ -306,6 +443,8 @@ struct ShoppingListView: View {
                 }
             }
         }
+        .onAppear { scheduleSuggestionExpansionIfNeeded() }
+        .onDisappear { resetSuggestionExpansion() }
     }
 
     private func suggestionChip(title: String, action: @escaping () -> Void) -> some View {
@@ -339,43 +478,63 @@ struct ShoppingListView: View {
     private func shoppingSection(for list: ShoppingList) -> some View {
         let items = sortedItems(for: list)
         Section(header: listHeader(for: list)) {
-            if items.isEmpty {
-                Text("No items yet. Add one above?")
-                    .font(.subheadline)
+            if collapsedListIds.contains(list.id) {
+                Text("Hidden")
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(items) { item in
-                    shoppingItemRow(list: list, item: item)
-                }
-                .onDelete { indexSet in
-                    Task { await deleteItems(at: indexSet, in: list, items: items) }
+                if items.isEmpty {
+                    Text("No items yet. Add one above?")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(items) { item in
+                        shoppingItemRow(list: list, item: item)
+                    }
+                    .onDelete { indexSet in
+                        Task { await deleteItems(at: indexSet, in: list, items: items) }
+                    }
                 }
             }
         }
     }
 
     private var canAddItem: Bool {
-        let hasItem = !newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasInput = hasValidItemInput
         if showNewListField || selectedListId == newListSentinel {
-            return hasItem && !newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return hasInput && !newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         // Allow adding items if no lists exist (will auto-create "Default" list)
         if app.shoppingLists.isEmpty {
-            return hasItem
+            return hasInput
         }
-        return hasItem && !selectedListId.isEmpty
+        return hasInput && !selectedListId.isEmpty
     }
 
     private func listHeader(for list: ShoppingList) -> some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(list.name)
+            Button {
+                withAnimation(.snappy(duration: 0.25)) {
+                    if collapsedListIds.contains(list.id) {
+                        collapsedListIds.remove(list.id)
+                    } else {
+                        collapsedListIds.insert(list.id)
+                    }
+                }
+            } label: {
+                Text(collapsedListIds.contains(list.id) ? "Show" : "Hide")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
             Spacer()
             if deletingListIds.contains(list.id) {
                 ProgressView()
                     .scaleEffect(0.8)
             } else {
                 Button(role: .destructive) {
-                    Task { await deleteList(list) }
+                    listPendingDeletion = list
                 } label: {
                     Image(systemName: "trash")
                 }
@@ -412,15 +571,6 @@ struct ShoppingListView: View {
             if isDeleting {
                 ProgressView()
                     .scaleEffect(0.8)
-            } else {
-                Button(role: .destructive) {
-                    Task { await deleteItem(list: list, item: item) }
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.plain)
-                .disabled(isToggling)
-                .accessibilityLabel("Remove \(item.name)")
             }
         }
         .padding(.vertical, 4)
@@ -597,13 +747,38 @@ struct ShoppingListView: View {
 
             guard !targetListId.isEmpty else { throw ValidationError.missingList }
 
-            try await app.addShoppingItem(
-                to: targetListId,
-                name: newItemName,
-                quantity: newItemQuantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newItemQuantity,
-                unit: newItemUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newItemUnit,
-                listLabel: nil
-            )
+            let namesToAdd: [String]
+            if isSuperQuickMode {
+                namesToAdd = parsedItemNames
+            } else {
+                let trimmed = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+                namesToAdd = trimmed.isEmpty ? [] : [trimmed]
+            }
+
+            guard !namesToAdd.isEmpty else { return }
+
+            let quantityValue: String? = {
+                guard !isSuperQuickMode else { return nil }
+                let trimmed = newItemQuantity.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : newItemQuantity
+            }()
+
+            let unitValue: String? = {
+                guard !isSuperQuickMode else { return nil }
+                let trimmed = newItemUnit.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : newItemUnit
+            }()
+
+            for name in namesToAdd {
+                try await app.addShoppingItem(
+                    to: targetListId,
+                    name: name,
+                    quantity: quantityValue,
+                    unit: unitValue,
+                    listLabel: nil
+                )
+            }
+
             newItemName = ""
             newItemQuantity = ""
             newItemUnit = ""
@@ -655,6 +830,30 @@ struct ShoppingListView: View {
             try await app.deleteShoppingList(id: list.id)
         } catch {
             alertMessage = error.localizedDescription
+        }
+    }
+
+    private func scheduleSuggestionExpansionIfNeeded() {
+        guard !showFullSuggestionList else { return }
+        suggestionExpansionTask?.cancel()
+        suggestionExpansionTask = Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeInOut) {
+                    showFullSuggestionList = true
+                }
+            }
+        }
+    }
+
+    private func resetSuggestionExpansion() {
+        suggestionExpansionTask?.cancel()
+        suggestionExpansionTask = nil
+        if showFullSuggestionList {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showFullSuggestionList = false
+            }
         }
     }
 }

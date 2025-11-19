@@ -74,6 +74,7 @@ struct AddPantryItemSheet: View {
                 
                 Section {
                     Button {
+                        HapticSoundPlayer.shared.playPrimaryTap()
                         Task { await addItem() }
                     } label: {
                         if isAddingItem {
@@ -142,4 +143,3 @@ struct AddPantryItemSheet: View {
         return trimmed
     }
 }
-

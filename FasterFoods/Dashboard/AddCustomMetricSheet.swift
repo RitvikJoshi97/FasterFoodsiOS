@@ -33,6 +33,7 @@ struct AddCustomMetricSheet: View {
                 
                 Section {
                     Button {
+                        HapticSoundPlayer.shared.playPrimaryTap()
                         addMetric()
                     } label: {
                         Label("Add metric", systemImage: "plus.circle.fill")
@@ -79,4 +80,3 @@ struct AddCustomMetricSheet: View {
         }
     }
 }
-

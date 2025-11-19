@@ -60,7 +60,10 @@ struct FoodLogFormView: View {
                 advancedSection
             }
 
-            Button(action: onSubmit) {
+            Button {
+                HapticSoundPlayer.shared.playPrimaryTap()
+                onSubmit()
+            } label: {
                 if isSubmitting {
                     ProgressView()
                         .frame(maxWidth: .infinity)

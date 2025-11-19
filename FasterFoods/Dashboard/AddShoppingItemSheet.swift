@@ -106,6 +106,7 @@ struct AddShoppingItemSheet: View {
                 
                 Section {
                     Button {
+                        HapticSoundPlayer.shared.playPrimaryTap()
                         Task { await addItem() }
                     } label: {
                         if isAddingItem {
@@ -187,4 +188,3 @@ struct AddShoppingItemSheet: View {
         }
     }
 }
-

@@ -20,6 +20,8 @@ struct PantryView: View {
     @State private var showReceiptSheet: Bool = false
     @FocusState private var focusedField: Field?
     @State private var recommendationsError: String?
+    @State private var showFullSuggestionList: Bool = false
+    @State private var suggestionExpansionTask: Task<Void, Never>?
 
     private enum Field: Hashable { case name, quantity, unit, expiry }
 
@@ -39,6 +41,7 @@ struct PantryView: View {
         "loaves", "containers", "bottles", "cans", "bags", "boxes"
     ]
 
+    private let collapsedSuggestionChipLimit = 4
     private var unitTagBinding: Binding<String> {
         Binding {
             newUnit.isEmpty ? commonUnits.first ?? "pieces" : newUnit
@@ -77,6 +80,34 @@ struct PantryView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter
+    }
+
+    private var shouldShowDetailFields: Bool {
+        let hasItemName = !newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasItemName || focusedField != nil
+    }
+
+    private var collapsedSuggestionChips: [String] {
+        Array(suggestions.prefix(collapsedSuggestionChipLimit))
+    }
+
+    private var additionalSuggestionChips: [String] {
+        Array(suggestions.dropFirst(collapsedSuggestionChips.count))
+    }
+
+    private var collapsedRecommendationChips: [ShoppingRecommendation] {
+        Array(app.pantryRecommendations.prefix(max(0, collapsedSuggestionChipLimit - collapsedSuggestionChips.count)))
+    }
+
+    private var additionalRecommendationChips: [ShoppingRecommendation] {
+        Array(app.pantryRecommendations.dropFirst(collapsedRecommendationChips.count))
+    }
+
+    private var suggestionRevealTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .move(edge: .top)),
+            removal: .opacity.combined(with: .move(edge: .top))
+        )
     }
 
     var body: some View {
@@ -154,23 +185,41 @@ struct PantryView: View {
                     .tint(Color.accentColor.opacity(0.12))
                     .foregroundStyle(Color.accentColor)
 
+                    HStack(spacing: 8) {
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundStyle(.secondary.opacity(0.4))
+                        Text("or")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundStyle(.secondary.opacity(0.4))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 16)
+
                     VStack(spacing: 12) {
                         TextField("Item name", text: $newItemName)
                             .focused($focusedField, equals: .name)
-                        HStack {
-                            TextField("Quantity", text: $newQuantity)
-                                .keyboardType(.numbersAndPunctuation)
-                                .focused($focusedField, equals: .quantity)
-                            Picker("Unit", selection: unitTagBinding) {
-                                ForEach(commonUnits, id: \.self) { option in
-                                    Text(option).tag(option)
+                        if shouldShowDetailFields {
+                            VStack(spacing: 12) {
+                                HStack {
+                                    TextField("Quantity", text: $newQuantity)
+                                        .keyboardType(.numbersAndPunctuation)
+                                        .focused($focusedField, equals: .quantity)
+                                    Picker("Unit", selection: unitTagBinding) {
+                                        ForEach(commonUnits, id: \.self) { option in
+                                            Text(option).tag(option)
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
                                 }
-                            }
-                            .pickerStyle(.menu)
-                        }
 
-                        TextField("Expiry date (optional)", text: $expiryText)
-                            .focused($focusedField, equals: .expiry)
+                                TextField("Expiry date (optional)", text: $expiryText)
+                                    .focused($focusedField, equals: .expiry)
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
 
                     Button {
@@ -187,32 +236,50 @@ struct PantryView: View {
                     .disabled(!canAddItem || isAddingItem)
                 }
                 .padding(.vertical, 4)
+                .animation(.easeInOut(duration: 0.2), value: shouldShowDetailFields)
+                .onChange(of: shouldShowDetailFields) { isVisible in
+                    guard !isVisible else { return }
+                    if focusedField != .name {
+                        focusedField = nil
+                    }
+                }
             }
 
             Section {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Suggestions")
                         .font(.headline)
+                        .animation(.none, value: showFullSuggestionList)
                     ChipFlow(horizontalSpacing: 8, verticalSpacing: 8) {
-                        ForEach(suggestions, id: \.self) { suggestion in
+                        ForEach(collapsedSuggestionChips, id: \.self) { suggestion in
                             suggestionChip(title: suggestion) {
                                 applySuggestion(suggestion)
                             }
                         }
-                        ForEach(app.pantryRecommendations) { recommendation in
-                            Button {
-                                selectedRecommendation = recommendation
-                            } label: {
-                                Text(recommendation.title)
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .foregroundStyle(Color.accentColor)
-                                    .background(Capsule().fill(Color.accentColor.opacity(0.18)))
+                        .transaction { $0.animation = nil }
+
+                        if showFullSuggestionList {
+                            ForEach(additionalSuggestionChips, id: \.self) { suggestion in
+                                suggestionChip(title: suggestion) {
+                                    applySuggestion(suggestion)
+                                }
+                                .transition(suggestionRevealTransition)
                             }
-                            .buttonStyle(.plain)
+                        }
+
+                        ForEach(collapsedRecommendationChips) { recommendation in
+                            aiSuggestionChip(recommendation)
+                        }
+                        .transaction { $0.animation = nil }
+
+                        if showFullSuggestionList {
+                            ForEach(additionalRecommendationChips) { recommendation in
+                                aiSuggestionChip(recommendation)
+                                    .transition(suggestionRevealTransition)
+                            }
                         }
                     }
+                    .animation(.easeInOut(duration: 0.25), value: showFullSuggestionList)
                     if let recommendationsError,
                        !recommendationsError.isEmpty {
                         Text(recommendationsError)
@@ -222,6 +289,8 @@ struct PantryView: View {
                 }
                 .padding(.vertical, 4)
             }
+            .onAppear { scheduleSuggestionExpansionIfNeeded() }
+            .onDisappear { resetSuggestionExpansion() }
 
             Section {
                 let uncheckedCount = app.pantryItems.filter { !$0.checked }.count
@@ -370,6 +439,20 @@ struct PantryView: View {
         .buttonStyle(.plain)
     }
 
+    private func aiSuggestionChip(_ recommendation: ShoppingRecommendation) -> some View {
+        Button {
+            selectedRecommendation = recommendation
+        } label: {
+            Text(recommendation.title)
+                .font(.subheadline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .foregroundStyle(Color.accentColor)
+                .background(Capsule().fill(Color.accentColor.opacity(0.18)))
+        }
+        .buttonStyle(.plain)
+    }
+
     private func applySuggestion(_ suggestion: String) {
         newItemName = suggestion
         let fallbackUnit = commonUnits.first ?? "pieces"
@@ -411,6 +494,30 @@ struct PantryView: View {
             didLoadRecommendations = true
         } catch {
             recommendationsError = error.localizedDescription
+        }
+    }
+
+    private func scheduleSuggestionExpansionIfNeeded() {
+        guard !showFullSuggestionList else { return }
+        suggestionExpansionTask?.cancel()
+        suggestionExpansionTask = Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeInOut) {
+                    showFullSuggestionList = true
+                }
+            }
+        }
+    }
+
+    private func resetSuggestionExpansion() {
+        suggestionExpansionTask?.cancel()
+        suggestionExpansionTask = nil
+        if showFullSuggestionList {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showFullSuggestionList = false
+            }
         }
     }
 

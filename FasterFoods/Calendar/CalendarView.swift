@@ -4,7 +4,7 @@ struct CalendarView: View {
     @EnvironmentObject private var app: AppState
     @State private var displayedMonth: Date = Date()
     @State private var selectedDate: Date = Date()
-    @State private var isWeekFocused = false
+    @State private var isWeekFocused = true
     @State private var monthDragOffset: CGFloat = 0
     @State private var weekDragOffset: CGFloat = 0
     @State private var isMonthTransitioning = false
@@ -268,8 +268,8 @@ private extension CalendarView {
             Text(selectedDateHeading)
                 .font(.title3.bold())
 
-            GlassCard {
-                if entriesForSelectedDate.isEmpty {
+            if entriesForSelectedDate.isEmpty {
+                GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("No logs for this day")
                             .font(.headline)
@@ -277,11 +277,11 @@ private extension CalendarView {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                } else {
-                    VStack(spacing: 12) {
-                        ForEach(entriesForSelectedDate) { entry in
-                            CalendarEventRow(entry: entry)
-                        }
+                }
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(entriesForSelectedDate) { entry in
+                        CalendarEventRow(entry: entry)
                     }
                 }
             }
@@ -510,7 +510,7 @@ private extension CalendarView {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
             displayedMonth = Date()
             selectedDate = Date()
-            isWeekFocused = false
+            isWeekFocused = true
         }
     }
 

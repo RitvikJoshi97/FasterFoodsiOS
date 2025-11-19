@@ -16,8 +16,8 @@ enum GlassNavigationBar {
         appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
         appearance.backgroundColor = UIColor { trait in
             trait.userInterfaceStyle == .dark
-            ? UIColor.black.withAlphaComponent(0.32)
-            : UIColor.white.withAlphaComponent(0.4)
+            ? UIColor.black.withAlphaComponent(0.15)
+            : UIColor.white.withAlphaComponent(0.2)
         }
         appearance.shadowColor = .clear
         appearance.titleTextAttributes = [

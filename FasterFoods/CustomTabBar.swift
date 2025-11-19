@@ -2,10 +2,20 @@ import SwiftUI
 
 struct CustomTabBar: View {
     @Binding var selection: TabIdentifier
-    let addAction: () -> Void
+    let isAddMenuPresented: Bool
+    let onAddOpen: () -> Void
+    let onAddClose: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
-    private var activeColor: Color {
+    private var inactiveBackground: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.28)
+    }
+
+    private var borderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.25) : Color.white.opacity(0.35)
+    }
+
+    private var floatingIconColor: Color {
         colorScheme == .dark ? .white : .black
     }
 
@@ -33,39 +43,46 @@ struct CustomTabBar: View {
                 .fill(.ultraThinMaterial)
                 .background(
                     Capsule(style: .continuous)
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.white.opacity(0.55))
-                        .blur(radius: 14)
+                        .fill(inactiveBackground)
+                        .blur(radius: 22)
                 )
                 .overlay(
                     Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.25 : 0.35), lineWidth: 1)
+                        .stroke(borderColor, lineWidth: 1)
                         .blendMode(.plusLighter)
                 )
-                .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.2 : 0.45), radius: 24, y: 8)
+                .shadow(color: Color.black.opacity(0.25), radius: 20, y: 10)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var addButton: some View {
-        Button(action: addAction) {
+        Button {
+            HapticSoundPlayer.shared.playPrimaryTap()
+            if isAddMenuPresented {
+                onAddClose()
+            } else {
+                onAddOpen()
+            }
+        } label: {
             Image(systemName: "plus")
                 .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(activeColor)
+                .foregroundStyle(isAddMenuPresented ? Color.secondary : floatingIconColor)
                 .frame(width: 56, height: 56)
                 .background(
                     Circle()
                         .fill(.ultraThinMaterial)
                         .background(
                             Circle()
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.35) : Color.white.opacity(0.75))
+                                .fill(isAddMenuPresented ? inactiveBackground : Color.white.opacity(colorScheme == .dark ? 0.25 : 0.65))
                         )
                         .overlay(
                             Circle()
                                 .stroke(
                                     LinearGradient(
                                         colors: [
-                                            Color.white.opacity(0.98),
-                                            Color.white.opacity(0.45)
+                                            Color.white.opacity(0.9),
+                                            Color.white.opacity(0.35)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -73,11 +90,17 @@ struct CustomTabBar: View {
                                     lineWidth: 1.2
                                 )
                         )
-                        .shadow(color: Color.white.opacity(colorScheme == .dark ? 0.25 : 0.5), radius: 18, y: 6)
+                        .shadow(color: Color.black.opacity(0.25), radius: 16, y: 8)
                 )
         }
         .buttonStyle(GlassFloatingButtonStyle())
         .contentShape(Rectangle())
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .preference(key: AddButtonFramePreferenceKey.self, value: geo.frame(in: .global))
+            }
+        )
     }
 }
 

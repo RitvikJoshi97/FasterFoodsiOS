@@ -122,6 +122,7 @@ struct AddFoodLogItemSheet: View {
                 
                 Section {
                     Button {
+                        HapticSoundPlayer.shared.playPrimaryTap()
                         logMeal()
                     } label: {
                         if isSubmitting {
@@ -183,4 +184,3 @@ struct AddFoodLogItemSheet: View {
         }
     }
 }
-
