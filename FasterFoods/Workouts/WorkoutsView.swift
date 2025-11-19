@@ -1,9 +1,13 @@
 import SwiftUI
+import HealthKit
 
 struct WorkoutsView: View {
     @EnvironmentObject private var app: AppState
     @StateObject private var viewModel = WorkoutsViewModel()
+    @StateObject private var healthKitManager = HealthKitWorkoutManager()
     @State private var isLoadingRecommendations = false
+    @State private var requestingHealthAccess = false
+    @State private var importingHealthWorkoutIDs: Set<UUID> = []
     var embedsInNavigationStack = true
 
     var body: some View {
@@ -18,6 +22,7 @@ struct WorkoutsView: View {
         }
         .onAppear {
             viewModel.bootstrap(with: app)
+            healthKitManager.refreshAuthorizationStatus()
             print("WorkoutsView appeared - workout items count: \(app.workoutItems.count)")
         }
         .onChange(of: viewModel.selectedActivityID) { oldValue, newValue in
@@ -50,6 +55,8 @@ struct WorkoutsView: View {
                 )
             }
 
+            healthKitSection
+
             Section {
                 if !app.workoutItems.isEmpty {
                     WorkoutHistoryList(items: app.workoutItems,
@@ -72,6 +79,69 @@ struct WorkoutsView: View {
         .navigationTitle("Workouts")
     }
 
+    @ViewBuilder
+    private var healthKitSection: some View {
+        Section("Health App") {
+            switch healthKitManager.authorizationState {
+            case .unavailable:
+                Text("Health data is not available on this device.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            case .notDetermined:
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Connect to the Health app to import workouts recorded on your iPhone or Apple Watch.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Button(action: requestHealthKitAccess) {
+                        if requestingHealthAccess {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Label("Connect to Health", systemImage: "heart.text.square")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            case .denied:
+                Text("Health access has been denied. Enable FasterFoods in the Health app under Data Access & Devices to import workouts.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            case .authorized:
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Recent workouts from Health")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Button(action: refreshHealthKitWorkouts) {
+                            if healthKitManager.isFetchingRecentWorkouts {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Refresh Health workouts")
+                    }
+                    if healthKitManager.recentWorkouts.isEmpty {
+                        Text("No workouts found in the last two weeks.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(healthKitManager.recentWorkouts.prefix(5)) { workout in
+                            HealthKitWorkoutRow(
+                                workout: workout,
+                                isImporting: importingHealthWorkoutIDs.contains(workout.id),
+                                onImport: { importHealthWorkout(workout) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private func addWorkout() {
         guard let item = viewModel.makeWorkoutItem() else { return }
         Task {
@@ -92,6 +162,38 @@ struct WorkoutsView: View {
                 try await app.loadWorkoutRecommendations()
             } catch {
                 print("Failed to load workout recommendations: \(error)")
+            }
+        }
+    }
+
+    private func requestHealthKitAccess() {
+        guard !requestingHealthAccess else { return }
+        requestingHealthAccess = true
+        Task {
+            await healthKitManager.requestAuthorization()
+            requestingHealthAccess = false
+        }
+    }
+
+    private func refreshHealthKitWorkouts() {
+        healthKitManager.fetchRecentWorkouts()
+    }
+
+    private func importHealthWorkout(_ workout: HKWorkout) {
+        let identifier = workout.id
+        guard !importingHealthWorkoutIDs.contains(identifier) else { return }
+        importingHealthWorkoutIDs.insert(identifier)
+        Task {
+            defer {
+                Task { @MainActor in
+                    importingHealthWorkoutIDs.remove(identifier)
+                }
+            }
+            guard let item = viewModel.makeWorkoutItem(fromHealthKit: workout) else { return }
+            do {
+                try await app.addWorkout(item)
+            } catch {
+                print("Failed to import workout from HealthKit: \(error)")
             }
         }
     }
@@ -227,6 +329,37 @@ final class WorkoutsViewModel: ObservableObject {
         return item
     }
 
+    func makeWorkoutItem(fromHealthKit workout: HKWorkout) -> WorkoutLogItem? {
+        let durationMinutes = max(workout.duration / 60, 1)
+        let durationString = formatMinutes(durationMinutes)
+        let caloriesValue = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
+
+        var params: [String: AnyCodableValue] = [
+            "Source": .string("Apple Health"),
+            "Activity Type": .string(workout.workoutActivityType.displayName)
+        ]
+
+        if let distanceMeters = workout.totalDistance?.doubleValue(for: .meter()),
+           distanceMeters > 0 {
+            let kilometers = (distanceMeters / 1000)
+            params["Distance (km)"] = .double(roundValue(kilometers, decimalPlaces: 2))
+        }
+
+        if let deviceName = workout.device?.name {
+            params["Device"] = .string(deviceName)
+        }
+
+        return WorkoutLogItem(
+            name: workout.workoutActivityType.displayName,
+            activity: WorkoutActivityDefinition.Constants.others,
+            category: WorkoutActivityDefinition.Constants.healthKitImport,
+            duration: durationString,
+            calories: caloriesValue.map { String(Int($0.rounded())) },
+            parameters: params,
+            datetime: isoFormatter.string(from: workout.endDate)
+        )
+    }
+
     func resetComposer() {
         workoutName = ""
         duration = ""
@@ -262,6 +395,167 @@ final class WorkoutsViewModel: ObservableObject {
             if currentValue.isEmpty {
                 parameterValues[parameter.id] = first
             }
+        }
+    }
+
+    private func roundValue(_ value: Double, decimalPlaces: Int) -> Double {
+        let multiplier = pow(10.0, Double(decimalPlaces))
+        return (value * multiplier).rounded() / multiplier
+    }
+
+    private func formatMinutes(_ minutes: Double) -> String {
+        let roundedValue = roundValue(minutes, decimalPlaces: 1)
+        if roundedValue.rounded() == roundedValue {
+            return String(Int(roundedValue))
+        }
+        return String(roundedValue)
+    }
+}
+
+// MARK: - HealthKit
+
+@MainActor
+final class HealthKitWorkoutManager: ObservableObject {
+    enum AuthorizationState {
+        case unavailable
+        case notDetermined
+        case denied
+        case authorized
+    }
+
+    @Published private(set) var authorizationState: AuthorizationState
+    @Published private(set) var recentWorkouts: [HKWorkout] = []
+    @Published private(set) var isFetchingRecentWorkouts = false
+
+    private let healthStore = HKHealthStore()
+    private let lookbackDays = 14
+
+    init() {
+        if HKHealthStore.isHealthDataAvailable() {
+            authorizationState = .notDetermined
+        } else {
+            authorizationState = .unavailable
+        }
+    }
+
+    func refreshAuthorizationStatus() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            authorizationState = .unavailable
+            recentWorkouts = []
+            return
+        }
+
+        let status = healthStore.authorizationStatus(for: HKObjectType.workoutType())
+        switch status {
+        case .sharingAuthorized:
+            authorizationState = .authorized
+            if recentWorkouts.isEmpty {
+                fetchRecentWorkouts()
+            }
+        case .sharingDenied:
+            authorizationState = .denied
+            recentWorkouts = []
+        case .notDetermined:
+            fallthrough
+        @unknown default:
+            authorizationState = .notDetermined
+        }
+    }
+
+    func requestAuthorization() async {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            authorizationState = .unavailable
+            return
+        }
+
+        var readTypes: Set<HKObjectType> = [HKObjectType.workoutType()]
+        let identifiers: [HKQuantityTypeIdentifier] = [
+            .heartRate,
+            .activeEnergyBurned,
+            .distanceWalkingRunning,
+            .distanceCycling,
+            .distanceSwimming
+        ]
+        identifiers.compactMap { HKObjectType.quantityType(forIdentifier: $0) }.forEach { readTypes.insert($0) }
+
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if success {
+                        continuation.resume(returning: ())
+                    } else {
+                        continuation.resume(throwing: HealthKitAuthorizationError.requestFailed)
+                    }
+                }
+            }
+            authorizationState = .authorized
+            fetchRecentWorkouts()
+        } catch {
+            authorizationState = .denied
+            print("HealthKit authorization failed: \(error)")
+        }
+    }
+
+    func fetchRecentWorkouts(limit: Int = 10) {
+        guard authorizationState == .authorized else { return }
+        isFetchingRecentWorkouts = true
+
+        let startDate = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: Date()) ?? Date.distantPast
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil, options: [])
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+        let query = HKSampleQuery(sampleType: HKObjectType.workoutType(),
+                                  predicate: predicate,
+                                  limit: limit,
+                                  sortDescriptors: [sortDescriptor]) { [weak self] _, samples, error in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isFetchingRecentWorkouts = false
+                if let workouts = samples as? [HKWorkout] {
+                    self.recentWorkouts = workouts
+                } else if let error {
+                    print("Failed to fetch workouts from HealthKit: \(error)")
+                    self.recentWorkouts = []
+                }
+            }
+        }
+        healthStore.execute(query)
+    }
+
+    enum HealthKitAuthorizationError: Error {
+        case requestFailed
+    }
+}
+
+extension HKWorkout: Identifiable {
+    public var id: UUID { uuid }
+}
+
+private extension HKWorkoutActivityType {
+    var displayName: String {
+        switch self {
+        case .running: return "Running"
+        case .walking: return "Walking"
+        case .hiking: return "Hiking"
+        case .cycling: return "Cycling"
+        case .swimming: return "Swimming"
+        case .yoga: return "Yoga"
+        case .pilates: return "Pilates"
+        case .traditionalStrengthTraining: return "Strength Training"
+        case .functionalStrengthTraining: return "Functional Strength"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .coreTraining: return "Core Training"
+        case .elliptical: return "Elliptical"
+        case .rowing: return "Rowing"
+        case .stairClimbing: return "Stair Climbing"
+        case .dance: return "Dance"
+        case .mindAndBody: return "Mind & Body"
+        case .crossTraining: return "Cross Training"
+        case .martialArts: return "Martial Arts"
+        case .boxing: return "Boxing"
+        default: return "Workout"
         }
     }
 }
@@ -334,6 +628,81 @@ private struct WorkoutSuggestionsSection: View {
             }
             .padding(.bottom, 4)
         }
+    }
+}
+
+private struct HealthKitWorkoutRow: View {
+    let workout: HKWorkout
+    let isImporting: Bool
+    let onImport: () -> Void
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    private static let durationFormatter: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.hour, .minute]
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
+    private static let distanceFormatter: MeasurementFormatter = {
+        let formatter = MeasurementFormatter()
+        formatter.unitOptions = .providedUnit
+        formatter.numberFormatter.maximumFractionDigits = 2
+        formatter.numberFormatter.minimumFractionDigits = 0
+        return formatter
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(workout.workoutActivityType.displayName)
+                        .font(.subheadline.weight(.medium))
+                    Text(Self.dateFormatter.string(from: workout.startDate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isImporting {
+                    ProgressView()
+                        .scaleEffect(0.9)
+                } else {
+                    Button("Log") {
+                        onImport()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            if !detailLine.isEmpty {
+                Text(detailLine)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var detailLine: String {
+        var parts: [String] = []
+        if let durationText = Self.durationFormatter.string(from: workout.duration) {
+            parts.append(durationText)
+        }
+        if let energy = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()) {
+            parts.append("\(Int(energy.rounded())) kcal")
+        }
+        if let distanceMeters = workout.totalDistance?.doubleValue(for: .meter()),
+           distanceMeters > 0 {
+            let measurement = Measurement(value: distanceMeters / 1000, unit: UnitLength.kilometers)
+            parts.append(Self.distanceFormatter.string(from: measurement))
+        }
+        return parts.joined(separator: " • ")
     }
 }
 
@@ -572,6 +941,7 @@ struct WorkoutActivityDefinition: Identifiable {
         static let teamField = "team-field"
         static let others = "others"
         static let racketPrecision = "racket-precision"
+        static let healthKitImport = "healthkit-import"
     }
 
     let id: String
@@ -887,6 +1257,11 @@ struct WorkoutActivityDefinition: Identifiable {
             id: Constants.others,
             name: "Others",
             categories: [
+                WorkoutCategoryDefinition(id: Constants.healthKitImport, name: "Imported (Health App)", parameters: [
+                    WorkoutParameterDefinition(id: "source", name: "Source", kind: .text(unit: "")),
+                    WorkoutParameterDefinition(id: "activity-type", name: "Activity Type", kind: .text(unit: "")),
+                    WorkoutParameterDefinition(id: "notes", name: "Notes", kind: .text(unit: ""))
+                ]),
                 WorkoutCategoryDefinition(id: "dance", name: "Dance", parameters: [
                     WorkoutParameterDefinition(id: "style", name: "Style", kind: .options(["Ballet", "Contemporary", "Hip Hop", "Latin", "Ballroom"]), required: true),
                     WorkoutParameterDefinition(id: "level", name: "Level", kind: .options(["Beginner", "Intermediate", "Advanced"])),
