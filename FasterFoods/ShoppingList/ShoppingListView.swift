@@ -30,7 +30,7 @@ struct ShoppingListView: View {
 
     private let commonSuggestions = [
         "Milk", "Eggs", "Bread", "Chicken", "Tomatoes",
-        "Onions", "Rice", "Pasta", "Cheese", "Yogurt"
+        "Onions", "Rice", "Pasta", "Cheese", "Yogurt",
     ]
 
     private let defaultUnits: [String: String] = [
@@ -43,12 +43,12 @@ struct ShoppingListView: View {
         "Rice": "lbs",
         "Pasta": "lbs",
         "Cheese": "lbs",
-        "Yogurt": "containers"
+        "Yogurt": "containers",
     ]
 
     private let commonUnits = [
         "pieces", "lbs", "kg", "oz", "g", "pints", "liters", "cups", "tbsp", "tsp",
-        "loaves", "containers", "bottles", "cans", "bags", "boxes"
+        "loaves", "containers", "bottles", "cans", "bags", "boxes",
     ]
 
     private let newListSentinel = "__new_list__"
@@ -91,7 +91,9 @@ struct ShoppingListView: View {
     }
 
     private var collapsedRecommendationSuggestions: [ShoppingRecommendation] {
-        Array(app.shoppingRecommendations.prefix(max(0, collapsedSuggestionChipLimit - collapsedCommonSuggestions.count)))
+        Array(
+            app.shoppingRecommendations.prefix(
+                max(0, collapsedSuggestionChipLimit - collapsedCommonSuggestions.count)))
     }
 
     private var additionalRecommendationSuggestions: [ShoppingRecommendation] {
@@ -119,7 +121,8 @@ struct ShoppingListView: View {
     }
 
     private var parsedItemNames: [String] {
-        let tokens = newItemName
+        let tokens =
+            newItemName
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -180,14 +183,17 @@ struct ShoppingListView: View {
             }
         }
         .alert("Something went wrong", isPresented: alertBinding) {
-            Button("OK", role: .cancel) { }
+            Button("OK", role: .cancel) {}
         } message: {
             Text(alertMessage ?? "Please try again later.")
         }
-        .confirmationDialog("Delete List?", isPresented: Binding(
-            get: { listPendingDeletion != nil },
-            set: { if !$0 { listPendingDeletion = nil } }
-        )) {
+        .confirmationDialog(
+            "Delete List?",
+            isPresented: Binding(
+                get: { listPendingDeletion != nil },
+                set: { if !$0 { listPendingDeletion = nil } }
+            )
+        ) {
             Button(role: .destructive) {
                 if let list = listPendingDeletion {
                     Task { await deleteList(list) }
@@ -347,11 +353,11 @@ struct ShoppingListView: View {
                         ProgressView()
                     } else {
                         Label {
-                            Text(isSuperQuickMode ? "+ Add Items" : "+ Add Item")
+                            Text(isSuperQuickMode ? "Add Items" : "Add Item")
                         } icon: {
                             Image(systemName: "plus")
                         }
-                            .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -598,7 +604,7 @@ struct ShoppingListView: View {
     private func itemDetails(_ item: ShoppingItem) -> String? {
         let parts: [String] = [
             item.quantity,
-            item.unit
+            item.unit,
         ].compactMap { value in
             let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed?.isEmpty == false ? trimmed : nil
@@ -673,7 +679,8 @@ struct ShoppingListView: View {
         recommendationsError = nil
         defer { dismissingRecommendationId = nil }
         do {
-            try await app.sendShoppingRecommendationFeedback(id: recommendation.id, action: .dismissed)
+            try await app.sendShoppingRecommendationFeedback(
+                id: recommendation.id, action: .dismissed)
         } catch {
             recommendationsError = error.localizedDescription
         }
@@ -687,7 +694,8 @@ struct ShoppingListView: View {
         applySuggestion(recommendation.title)
         defer { usingRecommendationId = nil }
         do {
-            try await app.sendShoppingRecommendationFeedback(id: recommendation.id, action: .accepted)
+            try await app.sendShoppingRecommendationFeedback(
+                id: recommendation.id, action: .accepted)
         } catch {
             recommendationsError = error.localizedDescription
         }
@@ -721,7 +729,7 @@ struct ShoppingListView: View {
         defer { isAddingItem = false }
         do {
             var targetListId = selectedListId
-            
+
             // If no lists exist, automatically create "Default" list
             if app.shoppingLists.isEmpty {
                 let list = try await app.createShoppingList(name: "Default")
@@ -794,7 +802,8 @@ struct ShoppingListView: View {
         togglingItemIds.insert(item.id)
         defer { togglingItemIds.remove(item.id) }
         do {
-            try await app.toggleShoppingItem(listId: list.id, itemId: item.id, checked: !item.checked)
+            try await app.toggleShoppingItem(
+                listId: list.id, itemId: item.id, checked: !item.checked)
         } catch {
             alertMessage = error.localizedDescription
         }
@@ -813,7 +822,9 @@ struct ShoppingListView: View {
     }
 
     @MainActor
-    private func deleteItems(at offsets: IndexSet, in list: ShoppingList, items: [ShoppingItem]) async {
+    private func deleteItems(at offsets: IndexSet, in list: ShoppingList, items: [ShoppingItem])
+        async
+    {
         for index in offsets {
             guard items.indices.contains(index) else { continue }
             let item = items[index]

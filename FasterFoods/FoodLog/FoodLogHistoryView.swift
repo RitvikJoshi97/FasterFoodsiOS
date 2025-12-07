@@ -32,7 +32,7 @@ struct FoodLogHistoryView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.name)
                     .font(.headline)
-                
+
                 HStack(spacing: 12) {
                     if let date = isoFormatter.date(from: item.datetime) {
                         Text(displayFormatter.string(from: date))
@@ -42,11 +42,8 @@ struct FoodLogHistoryView: View {
                     Text(item.meal.capitalized)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(item.loggingLevel.rawValue.capitalized)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
-                
+
                 if let calories = item.calories, !calories.isEmpty {
                     Text("Calories: \(calories)")
                         .font(.caption)

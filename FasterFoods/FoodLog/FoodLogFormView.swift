@@ -11,53 +11,74 @@ struct FoodLogFormView: View {
     private let portionOptions = FoodLogViewModel.PortionSize.allCases
     private let moodOptions = FoodLogViewModel.Mood.allCases
     private let categoryOptions = FoodLogViewModel.MealCategory.allCases
+    @FocusState private var isItemFieldFocused: Bool
+
+    private var shouldShowExpandedForm: Bool {
+        isItemFieldFocused
+            || !viewModel.itemName
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty
+    }
 
     var body: some View {
         VStack(spacing: 16) {
             TextField("What did you eat?", text: $viewModel.itemName)
                 .textInputAutocapitalization(.sentences)
+                .focused($isItemFieldFocused)
 
-            HStack(spacing: 12) {
-                Picker("", selection: $viewModel.mealTime) {
-                    ForEach(mealTimeOptions) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .pickerStyle(.menu)
-                .onChange(of: viewModel.mealTime) { oldValue, newValue in
-                    if let adjusted = Calendar.current.date(bySettingHour: hour(for: newValue), minute: 0, second: 0, of: mealDate) {
-                        mealDate = adjusted
-                    }
-                }
-                DatePicker("", selection: $mealDate, displayedComponents: [.date, .hourAndMinute])
-                    .labelsHidden()
-                    .onChange(of: mealDate) { oldValue, newValue in
-                        viewModel.adjustMealTime(basedOn: newValue)
-                    }
-            }
-
-            if loggingLevel == .beginner || loggingLevel == .intermediate || loggingLevel == .advanced {
-                portionSelector
-                moodSelector
-            }
-
-            if loggingLevel != .beginner {
-                macroFields
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Meal focus")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Picker("Meal focus", selection: $viewModel.mealCategory) {
-                        ForEach(categoryOptions) { category in
-                            Text(category.rawValue).tag(category)
+            if shouldShowExpandedForm {
+                Group {
+                    HStack(spacing: 12) {
+                        Picker("", selection: $viewModel.mealTime) {
+                            ForEach(mealTimeOptions) { option in
+                                Text(option.label).tag(option)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .onChange(of: viewModel.mealTime) { oldValue, newValue in
+                            if let adjusted = Calendar.current.date(
+                                bySettingHour: hour(for: newValue), minute: 0, second: 0,
+                                of: mealDate)
+                            {
+                                mealDate = adjusted
+                            }
+                        }
+                        DatePicker(
+                            "", selection: $mealDate, displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .labelsHidden()
+                        .onChange(of: mealDate) { oldValue, newValue in
+                            viewModel.adjustMealTime(basedOn: newValue)
                         }
                     }
-                    .pickerStyle(.menu)
-                }
-            }
 
-            if loggingLevel == .advanced {
-                advancedSection
+                    if loggingLevel == .beginner || loggingLevel == .intermediate
+                        || loggingLevel == .advanced
+                    {
+                        portionSelector
+                        moodSelector
+                    }
+
+                    if loggingLevel != .beginner {
+                        macroFields
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Meal focus")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Picker("Meal focus", selection: $viewModel.mealCategory) {
+                                ForEach(categoryOptions) { category in
+                                    Text(category.rawValue).tag(category)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                    }
+
+                    if loggingLevel == .advanced {
+                        advancedSection
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             Button {
@@ -75,6 +96,7 @@ struct FoodLogFormView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!viewModel.canLogEntry || isSubmitting)
         }
+        .animation(.easeInOut(duration: 0.2), value: shouldShowExpandedForm)
         .onAppear {
             viewModel.adjustMealTime(basedOn: mealDate)
         }
@@ -126,7 +148,6 @@ struct FoodLogFormView: View {
                 .keyboardType(.decimalPad)
         }
     }
-
 
     private var advancedSection: some View {
         DisclosureGroup("Advanced tracking") {
