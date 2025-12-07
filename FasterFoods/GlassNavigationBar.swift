@@ -16,17 +16,17 @@ enum GlassNavigationBar {
         appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
         appearance.backgroundColor = UIColor { trait in
             trait.userInterfaceStyle == .dark
-            ? UIColor.black.withAlphaComponent(0.15)
-            : UIColor.white.withAlphaComponent(0.2)
+                ? UIColor.black.withAlphaComponent(0.15)
+                : UIColor.white.withAlphaComponent(0.2)
         }
         appearance.shadowColor = .clear
         appearance.titleTextAttributes = [
             .foregroundColor: UIColor.label,
-            .font: UIFont.systemFont(ofSize: 17, weight: .semibold)
+            .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
         ]
         appearance.largeTitleTextAttributes = [
             .foregroundColor: UIColor.label,
-            .font: UIFont.systemFont(ofSize: 34, weight: .bold)
+            .font: UIFont.systemFont(ofSize: 34, weight: .bold),
         ]
 
         let navigationBar = UINavigationBar.appearance()
