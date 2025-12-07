@@ -1,7 +1,7 @@
-import SwiftUI
-import UIKit
 import AuthenticationServices
 import GoogleSignIn
+import SwiftUI
+import UIKit
 
 struct LoginView: View {
     @EnvironmentObject var app: AppState
@@ -17,8 +17,7 @@ struct LoginView: View {
     @State private var needsVerification = false
 
     private var isFormValid: Bool {
-        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !password.isEmpty
+        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty
     }
 
     var body: some View {
@@ -33,11 +32,11 @@ struct LoginView: View {
                         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                         .padding(.bottom, 8)
                 }
-                
+
                 Text("FasterFoods")
                     .font(.largeTitle)
                     .bold()
-                
+
                 AppleSignInButton { result in
                     Task { await handleAppleSignIn(result) }
                 }
@@ -57,7 +56,7 @@ struct LoginView: View {
                         ProgressView()
                     }
                 }
-                
+
                 HStack {
                     Rectangle()
                         .frame(height: 1)
@@ -70,7 +69,7 @@ struct LoginView: View {
                         .foregroundColor(.gray.opacity(0.3))
                 }
                 .padding(.vertical, 8)
-                
+
                 TextField("Email", text: $email)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
@@ -180,16 +179,16 @@ struct LoginView: View {
         infoMessage = nil
         errorMessage = nil
         defer { isAppleSignInLoading = false }
-        
+
         do {
             let authorization = try result.get()
             let coordinator = AppleSignInCoordinator()
-            
+
             guard let credentials = coordinator.handleAuthorization(authorization) else {
                 errorMessage = "Failed to process Apple Sign In credentials"
                 return
             }
-            
+
             try await app.loginWithApple(
                 identityToken: credentials.identityToken,
                 userIdentifier: credentials.userIdentifier,
@@ -204,7 +203,7 @@ struct LoginView: View {
             errorMessage = "Apple Sign In failed: \(error.localizedDescription)"
         }
     }
-    
+
     @MainActor
     private func handleGoogleSignIn(_ result: Result<GIDSignInResult, Error>) async {
         isGoogleSignInLoading = true
@@ -212,16 +211,16 @@ struct LoginView: View {
         infoMessage = nil
         errorMessage = nil
         defer { isGoogleSignInLoading = false }
-        
+
         do {
             let signInResult = try result.get()
             let coordinator = GoogleSignInCoordinator()
-            
+
             guard let credentials = coordinator.handleSignInResult(signInResult) else {
                 errorMessage = "Failed to process Google Sign In credentials"
                 return
             }
-            
+
             try await app.loginWithGoogle(
                 idToken: credentials.idToken,
                 userID: credentials.userID,
@@ -298,7 +297,8 @@ struct ForgotPasswordView: View {
         defer { isSubmitting = false }
         do {
             try await app.forgotPassword(email: email)
-            message = "If an account exists for \(email), you'll receive reset instructions shortly."
+            message =
+                "If an account exists for \(email), you'll receive reset instructions shortly."
         } catch let apiError as APIError {
             message = apiError.message
             isError = true
@@ -313,20 +313,23 @@ struct SplashView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var opacity: Double = 0
     @State private var scale: Double = 0.8
-    
+
     var body: some View {
         ZStack {
             // Green gradient that adapts to light/dark mode
             LinearGradient(
-                gradient: Gradient(colors: colorScheme == .dark ? [
-                    // Dark mode: Forest green to almost black-green
-                    Color(hex: "#1B5E20"),  // Forest green
-                    Color(hex: "#0A2E12")   // Almost black-green
-                ] : [
-                    // Light mode: Vibrant green
-                    Color(hex: "#2E7D32"),  // Top green
-                    Color(hex: "#0f4c1a")   // Bottom darker green
-                ]),
+                gradient: Gradient(
+                    colors: colorScheme == .dark
+                        ? [
+                            // Dark mode: Forest green to almost black-green
+                            Color(hex: "#1B5E20"),  // Forest green
+                            Color(hex: "#0A2E12"),  // Almost black-green
+                        ]
+                        : [
+                            // Light mode: Vibrant green
+                            Color(hex: "#2E7D32"),  // Top green
+                            Color(hex: "#0f4c1a"),  // Bottom darker green
+                        ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -373,13 +376,16 @@ extension Color {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
+        let a: UInt64
+        let r: UInt64
+        let g: UInt64
+        let b: UInt64
         switch hex.count {
-        case 3: // RGB (12-bit)
+        case 3:  // RGB (12-bit)
             (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
+        case 6:  // RGB (24-bit)
             (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
+        case 8:  // ARGB (32-bit)
             (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
         default:
             (a, r, g, b) = (1, 1, 1, 0)
@@ -389,7 +395,7 @@ extension Color {
             .sRGB,
             red: Double(r) / 255,
             green: Double(g) / 255,
-            blue:  Double(b) / 255,
+            blue: Double(b) / 255,
             opacity: Double(a) / 255
         )
     }
@@ -473,10 +479,12 @@ struct ChipFlow: Layout {
         var lineHeight: CGFloat = 0
 
         for subview in subviews {
-            let subviewSize = subview.sizeThatFits(ProposedViewSize(width: maxWidth, height: proposal.height))
+            let subviewSize = subview.sizeThatFits(
+                ProposedViewSize(width: maxWidth, height: proposal.height))
             if maxWidth.isFinite,
-               lineWidth > 0,
-               lineWidth + subviewSize.width > maxWidth {
+                lineWidth > 0,
+                lineWidth + subviewSize.width > maxWidth
+            {
                 totalHeight += lineHeight + verticalSpacing
                 lineWidth = 0
                 lineHeight = 0
@@ -494,7 +502,9 @@ struct ChipFlow: Layout {
         return CGSize(width: finalWidth, height: totalHeight)
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    func placeSubviews(
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+    ) {
         guard !subviews.isEmpty else { return }
         let maxWidth = bounds.width == 0 ? .infinity : bounds.width
         var currentX = bounds.minX
@@ -502,10 +512,12 @@ struct ChipFlow: Layout {
         var lineHeight: CGFloat = 0
 
         for subview in subviews {
-            let subviewSize = subview.sizeThatFits(ProposedViewSize(width: maxWidth, height: proposal.height))
+            let subviewSize = subview.sizeThatFits(
+                ProposedViewSize(width: maxWidth, height: proposal.height))
             if maxWidth.isFinite,
-               currentX > bounds.minX,
-               currentX + subviewSize.width > bounds.maxX {
+                currentX > bounds.minX,
+                currentX + subviewSize.width > bounds.maxX
+            {
                 currentX = bounds.minX
                 currentY += lineHeight + verticalSpacing
                 lineHeight = 0

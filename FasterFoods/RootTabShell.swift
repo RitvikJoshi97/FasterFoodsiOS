@@ -1,62 +1,55 @@
 import SwiftUI
-import UIKit
 
 enum TabIdentifier: Hashable {
     case dashboard
     case calendar
     case shopping
     case pantry
+    case add
+
+    var title: String {
+        switch self {
+        case .dashboard:
+            return "Dashboard"
+        case .calendar:
+            return "Calendar"
+        case .shopping:
+            return "Shopping"
+        case .pantry:
+            return "Pantry"
+        case .add:
+            return "Add"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .dashboard:
+            return "speedometer"
+        case .calendar:
+            return "calendar"
+        case .shopping:
+            return "cart"
+        case .pantry:
+            return "archivebox"
+        case .add:
+            return "plus"
+        }
+    }
 }
 
 struct RootTabShell: View {
     @EnvironmentObject private var app: AppState
     @State private var selectedTab: TabIdentifier = .dashboard
+    @State private var lastNonAddTab: TabIdentifier = .dashboard
     @State private var showingAddMenu = false
     @State private var activeAddDestination: AddItemType?
-    @State private var addButtonFrame: CGRect = .zero
-    @State private var addMenuSize: CGSize = .zero
-
-    init() {
-        if #available(iOS 16.0, *) {
-            UITabBar.appearance().isHidden = true
-        }
-    }
 
     var body: some View {
         ZStack {
-            TabView(selection: $selectedTab) {
-                DashboardView()
-                    .tag(TabIdentifier.dashboard)
-                CalendarView()
-                    .tag(TabIdentifier.calendar)
-                ShoppingListView()
-                    .tag(TabIdentifier.shopping)
-                PantryView()
-                    .tag(TabIdentifier.pantry)
-            }
-            .toolbar(.hidden, for: .tabBar)
-            .toolbarBackground(.hidden, for: .tabBar)
-
+            tabScaffold
             addMenuOverlay
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            CustomTabBar(
-                selection: $selectedTab,
-                isAddMenuPresented: showingAddMenu,
-                onAddOpen: {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
-                        showingAddMenu = true
-                    }
-                },
-                onAddClose: {
-                    dismissAddMenu()
-                }
-            )
-            .onPreferenceChange(AddButtonFramePreferenceKey.self) { frame in
-                addButtonFrame = frame
-            }
-        }
-        .toolbar(.hidden, for: .tabBar)
         .sheet(item: $activeAddDestination) { itemType in
             Group {
                 switch itemType {
@@ -78,39 +71,142 @@ struct RootTabShell: View {
     }
 }
 
-private extension RootTabShell {
+extension RootTabShell {
     @ViewBuilder
-    var addMenuOverlay: some View {
-        if showingAddMenu, addButtonFrame != .zero {
-            ZStack(alignment: .topLeading) {
-                Color.black.opacity(0.12)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .transition(.opacity)
-                    .onTapGesture { dismissAddMenu() }
+    private var tabScaffold: some View {
+        if #available(iOS 18.0, *) {
+            modernTabView
+        } else {
+            fallbackTabView
+        }
+    }
 
-                AddActionPopup(onSelect: presentAddDestination)
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear
-                                .preference(key: AddMenuSizePreferenceKey.self, value: geo.size)
-                        }
-                    )
-                    .position(addMenuPosition(for: addMenuSize == .zero ? CGSize(width: 220, height: 220) : addMenuSize))
-                    .transition(.scale(scale: 0.9, anchor: .bottomTrailing).combined(with: .opacity))
+    @available(iOS 18.0, *)
+    private var modernTabView: some View {
+        TabView(selection: $selectedTab) {
+            Tab(value: .dashboard) {
+                DashboardView()
+            } label: {
+                Label(TabIdentifier.dashboard.title, systemImage: TabIdentifier.dashboard.icon)
             }
-            .onPreferenceChange(AddMenuSizePreferenceKey.self) { addMenuSize = $0 }
+
+            Tab(value: .calendar) {
+                CalendarView()
+            } label: {
+                Label(TabIdentifier.calendar.title, systemImage: TabIdentifier.calendar.icon)
+            }
+
+            Tab(value: .shopping) {
+                ShoppingListView()
+            } label: {
+                Label(TabIdentifier.shopping.title, systemImage: TabIdentifier.shopping.icon)
+            }
+
+            Tab(value: .pantry) {
+                PantryView()
+            } label: {
+                Label(TabIdentifier.pantry.title, systemImage: TabIdentifier.pantry.icon)
+            }
+
+            Tab(value: .add, role: .search) {
+                Color.clear
+            } label: {
+                Label(TabIdentifier.add.title, systemImage: TabIdentifier.add.icon)
+            }
+        }
+        .tint(.accentColor)
+        .onChange(of: selectedTab) { newValue in
+            handleTabChange(newValue)
+        }
+    }
+
+    private var fallbackTabView: some View {
+        TabView(selection: $selectedTab) {
+            DashboardView()
+                .tabItem {
+                    Label(TabIdentifier.dashboard.title, systemImage: TabIdentifier.dashboard.icon)
+                }
+                .tag(TabIdentifier.dashboard)
+
+            CalendarView()
+                .tabItem {
+                    Label(TabIdentifier.calendar.title, systemImage: TabIdentifier.calendar.icon)
+                }
+                .tag(TabIdentifier.calendar)
+
+            ShoppingListView()
+                .tabItem {
+                    Label(TabIdentifier.shopping.title, systemImage: TabIdentifier.shopping.icon)
+                }
+                .tag(TabIdentifier.shopping)
+
+            PantryView()
+                .tabItem {
+                    Label(TabIdentifier.pantry.title, systemImage: TabIdentifier.pantry.icon)
+                }
+                .tag(TabIdentifier.pantry)
+
+            Color.clear
+                .tabItem { Label(TabIdentifier.add.title, systemImage: TabIdentifier.add.icon) }
+                .tag(TabIdentifier.add)
+        }
+        .tint(.accentColor)
+        .onChange(of: selectedTab) { newValue in
+            handleTabChange(newValue)
+        }
+    }
+
+    @ViewBuilder
+    fileprivate var addMenuOverlay: some View {
+        if showingAddMenu {
+            ZStack {
+                Color.black.opacity(0.0001)
+                    .ignoresSafeArea()
+                    .onTapGesture { dismissAddMenu() }
+                    .transition(.opacity)
+
+                GeometryReader { proxy in
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            AddActionPopup(onSelect: presentAddDestination)
+                                .frame(width: proxy.size.width * 0.5)
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 60)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
+                }
+            }
+            .animation(.spring(response: 0.55, dampingFraction: 0.85), value: showingAddMenu)
             .zIndex(1)
         }
     }
 
-    func dismissAddMenu() {
+    private func handleTabChange(_ newValue: TabIdentifier) {
+        guard newValue == .add else {
+            lastNonAddTab = newValue
+            return
+        }
+
+        HapticSoundPlayer.shared.playPrimaryTap()
+
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
+            showingAddMenu = true
+        }
+
+        // Keep the TabView on the previously selected tab.
+        selectedTab = lastNonAddTab
+    }
+
+    fileprivate func dismissAddMenu() {
         withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
             showingAddMenu = false
         }
     }
 
-    func presentAddDestination(_ itemType: AddItemType) {
+    fileprivate func presentAddDestination(_ itemType: AddItemType) {
         let showDestination = {
             activeAddDestination = itemType
         }
@@ -125,22 +221,13 @@ private extension RootTabShell {
             showDestination()
         }
     }
-
-    func addMenuPosition(for menuSize: CGSize) -> CGPoint {
-        let trailingAlignment = addButtonFrame.maxX - (menuSize.width / 2)
-        let buttonHeight = addButtonFrame.height == 0 ? 56 : addButtonFrame.height
-        let verticalSpacing = buttonHeight + 24
-        let targetY = addButtonFrame.minY - verticalSpacing - (menuSize.height / 2)
-        let safeY = max(targetY, menuSize.height / 2 + 12)
-        return CGPoint(x: trailingAlignment, y: safeY)
-    }
 }
 
 private struct AddActionPopup: View {
     let onSelect: (AddItemType) -> Void
 
     private let options: [AddItemType] = [
-        .shoppingItem, .pantryItem, .foodLogItem, .customMetric
+        .shoppingItem, .pantryItem, .foodLogItem, .customMetric,
     ]
 
     var body: some View {
@@ -151,60 +238,24 @@ private struct AddActionPopup: View {
                     HapticSoundPlayer.shared.playSelectionTap()
                     onSelect(option)
                 } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: option.icon)
-                            .font(.system(size: 18, weight: .semibold))
-                            .frame(width: 32, height: 32)
-                            .background(Circle().fill(.ultraThinMaterial))
-
-                        Text(option.title)
-                            .font(.subheadline.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(option.title)")
+                            .font(.headline.weight(.medium))
                             .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-
-                        Spacer(minLength: 6)
                     }
-                    .padding(.vertical, 8)
-                    .padding(.leading, 8)
-                    .padding(.trailing, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
                 }
                 .buttonStyle(.plain)
 
                 if index < options.count - 1 {
                     Divider()
-                        .padding(.horizontal, 10)
                 }
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 8)
-        .frame(width: 212, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
-                )
-                .shadow(color: .black.opacity(0.25), radius: 12, y: 8)
-        )
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(radius: 2)
         .accessibilityElement(children: .contain)
-    }
-}
-
-struct AddButtonFramePreferenceKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
-    }
-}
-
-private struct AddMenuSizePreferenceKey: PreferenceKey {
-    static var defaultValue: CGSize = .zero
-
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
-        value = nextValue()
     }
 }
