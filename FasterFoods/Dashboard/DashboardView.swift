@@ -675,56 +675,59 @@ struct SuggestedReadsSection: View {
 
 struct SuggestedReadCard: View {
     let article: ArticleTopic
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            AsyncImage(url: article.randomImageURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure:
-                    Color.accentColor.opacity(0.15)
-                case .empty:
-                    Color.gray.opacity(0.1)
-                @unknown default:
-                    Color.gray.opacity(0.1)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .overlay(
-                LinearGradient(
-                    colors: [.black.opacity(0.7), .black.opacity(0.2)],
-                    startPoint: .bottom,
-                    endPoint: .top
-                )
-            )
+        VStack(alignment: .leading, spacing: 12) {
+            Text(article.title)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .lineLimit(2)
+                .foregroundColor(.primary)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(article.title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .lineLimit(2)
-                    .foregroundColor(.white)
-                Spacer()
-                HStack {
-                    Spacer()
-                    Label("Read more", systemImage: "arrow.up.forward")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .foregroundColor(.white)
-                }
-            }
-            .padding()
+            Spacer(minLength: 0)
+
+            Label("Read more", systemImage: "arrow.up.forward.circle.fill")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(buttonBackground, in: Capsule())
+                .foregroundColor(buttonTextColor)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.bottom, 2)
         }
-        .frame(width: 240, height: 150)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 4)
+        .padding()
+        .frame(width: 240, height: 160, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(cardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(cardStroke, lineWidth: 1)
+        )
+    }
+
+    private var cardBackground: Color {
+        colorScheme == .dark
+            ? Color.green.opacity(0.22)
+            : Color.green.opacity(0.12)
+    }
+
+    private var cardStroke: Color {
+        colorScheme == .dark
+            ? Color.green.opacity(0.45)
+            : Color.green.opacity(0.25)
+    }
+
+    private var buttonBackground: Color {
+        colorScheme == .dark
+            ? Color.green.opacity(0.3)
+            : Color.green.opacity(0.2)
+    }
+
+    private var buttonTextColor: Color {
+        colorScheme == .dark ? .white : .primary
     }
 }
 
