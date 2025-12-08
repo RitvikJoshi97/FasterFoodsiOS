@@ -32,7 +32,7 @@ struct WorkoutHistoryList: View {
             ForEach(sortedItems) { item in
                 WorkoutHistoryRow(
                     item: item,
-                    categoryLabel: label(forCategory: item.category, activityID: item.activity),
+                    categoryLabel: label(for: item),
                     dateText: formattedDate(for: item),
                     parameterSummary: parameterSummary(for: item)
                 ) {
@@ -69,16 +69,27 @@ struct WorkoutHistoryList: View {
     private func parameterSummary(for item: WorkoutLogItem) -> String {
         item.parameters
             .sorted { $0.key < $1.key }
-            .map { key, value in "\(key): \(value.stringValue)" }
+            .compactMap { key, value in
+                // Hide internal metadata from HealthKit imports
+                if ["HealthKit UUID", "Activity Type", "Source", "Device"].contains(key) {
+                    return nil
+                }
+                return "\(key): \(value.stringValue)"
+            }
             .joined(separator: " • ")
     }
 
-    private func label(forCategory id: String, activityID: String) -> String {
-        activities
-            .first(where: { $0.id == activityID })?
+    private func label(for item: WorkoutLogItem) -> String {
+        if item.category == WorkoutActivityDefinition.Constants.healthKitImport {
+            // Show the underlying Health workout type instead of the generic import category name.
+            return item.name
+        }
+        return
+            activities
+            .first(where: { $0.id == item.activity })?
             .categories
-            .first(where: { $0.id == id })?
-            .name ?? id
+            .first(where: { $0.id == item.category })?
+            .name ?? item.category
     }
 
     private func parse(dateString: String) -> Date? {
@@ -110,6 +121,9 @@ private struct WorkoutHistoryRow: View {
                     if let caloriesStr = item.calories, let calories = Double(caloriesStr) {
                         Label("\(Int(calories)) kcal", systemImage: "flame")
                             .font(.caption)
+                            .labelStyle(.titleAndIcon)
+                            .symbolVariant(.fill)
+                            .imageScale(.small)
                     }
                     Text(dateText)
                         .font(.caption)
