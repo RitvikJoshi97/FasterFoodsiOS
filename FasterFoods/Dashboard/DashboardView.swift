@@ -240,23 +240,43 @@ extension DashboardView {
 
         let completionScores = macros.map { $0.progress }
         let hasData = macros.contains(where: { $0.consumed > 0 })
-        let recommendation: String
+        let macroRecommendation: String
         if hasData {
             if completionScores.allSatisfy({ $0 >= 1 }) {
-                recommendation = "Try to not have more today"
+                macroRecommendation = "Try to not have more today"
             } else if completionScores.allSatisfy({ $0 >= 0.75 }) {
-                recommendation = "Light curd"
+                macroRecommendation = "Light curd"
             } else {
-                recommendation = "Pasta"
+                macroRecommendation = "Pasta"
             }
         } else {
-            recommendation = "Pasta"
+            macroRecommendation = "Pasta"
+        }
+
+        let aiRecommendation = app.foodLogRecommendations.first
+        let recommendation: String
+        if let aiRecommendation {
+            let trimmedDescription =
+                aiRecommendation.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedTitle = aiRecommendation.title.trimmingCharacters(
+                in: .whitespacesAndNewlines)
+            if !trimmedDescription.isEmpty {
+                recommendation = trimmedDescription
+            } else if !trimmedTitle.isEmpty {
+                recommendation = "We recommend \(trimmedTitle) today."
+            } else {
+                recommendation = macroRecommendation
+            }
+        } else {
+            recommendation = macroRecommendation
         }
 
         return FoodLogSummary(
             calories: Int(totalCalories.rounded()),
             macros: macros,
-            recommendation: recommendation
+            recommendation: recommendation,
+            mealsCount: todayItems.count,
+            todayItems: todayItems
         )
     }
 
@@ -335,6 +355,8 @@ struct FoodLogSummary {
     let calories: Int
     let macros: [MacroRingData]
     let recommendation: String
+    let mealsCount: Int
+    let todayItems: [FoodLogItem]
 }
 
 private struct DashboardScrollOffsetPreferenceKey: PreferenceKey {

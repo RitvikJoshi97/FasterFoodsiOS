@@ -20,38 +20,57 @@ struct FoodLogCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(summary.calories) kcal")
-                        .font(.system(size: 32, weight: .bold))
-                    Text("logged today")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 4) {
+            // Left column: heading + recommendation, then calories
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Food Log")
+                        .font(.headline)
+                    if !summary.recommendation.isEmpty {
+                        Text("Today's suggestion")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(summary.recommendation)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(4)
+                    }
                 }
 
-                Spacer()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(summary.calories) kcal")
+                        .font(.headline.weight(.bold))
+                    Text("logged today")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-                HStack(spacing: 6) {
+            // Right column: macros up top, graph below
+            VStack(alignment: .trailing, spacing: 8) {
+                HStack(spacing: 8) {
                     ForEach(summary.macros) { macro in
                         MacroRingView(macro: macro)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                FoodLogHistoryGraphsView(mode: .day, items: summary.todayItems)
+                    .frame(width: 170, height: 95, alignment: .top)
+                    .scaleEffect(y: 0.62, anchor: .top)
+                    .clipped()
             }
-
-            Spacer()
-
-            Text(summary.recommendation)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding()
-        .frame(maxWidth: .infinity, minHeight: 150)
+        .frame(maxWidth: .infinity, minHeight: 190)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.orange.opacity(0.1))
         )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -68,20 +87,20 @@ private struct MacroRingView: View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 6)
-                    .frame(width: 36, height: 36)
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 5)
+                    .frame(width: 32, height: 32)
 
                 Circle()
                     .trim(from: 0, to: CGFloat(macro.progress))
                     .stroke(
                         macro.color,
-                        style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 32, height: 32)
 
                 Text("\(Int(macro.progress * 100))%")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                     .fontWeight(.semibold)
             }
 
