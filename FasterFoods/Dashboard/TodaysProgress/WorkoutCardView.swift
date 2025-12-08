@@ -79,7 +79,7 @@ struct WorkoutCardView: View {
         .frame(maxWidth: .infinity, minHeight: 150)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(state.accentColor.opacity(0.1))
+                .fill(Color.red.opacity(0.1))
         )
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
         .animation(.easeInOut, value: progress)
