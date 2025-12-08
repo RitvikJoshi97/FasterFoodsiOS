@@ -1,6 +1,7 @@
 import SwiftUI
+
 #if canImport(UIKit)
-import UIKit
+    import UIKit
 #endif
 
 struct FoodLogView: View {
@@ -18,11 +19,12 @@ struct FoodLogView: View {
     @State private var dismissingRecommendationId: String?
     @State private var alertMessage: String?
     @State private var didInitialize = false
+    @State private var foodHistoryMode: FoodLogHistoryGraphMode = .day
     var embedsInNavigationStack = true
 
     private let staticSuggestions = [
         "Oatmeal", "Greek Yogurt", "Salad", "Grilled Chicken", "Salmon",
-        "Brown Rice", "Smoothie", "Nuts", "Apple", "Sandwich"
+        "Brown Rice", "Smoothie", "Nuts", "Apple", "Sandwich",
     ]
 
     var body: some View {
@@ -46,10 +48,13 @@ struct FoodLogView: View {
         }
         .task { await loadFoodLogIfNeeded() }
         .task { await loadRecommendationsIfNeeded() }
-        .alert("Something went wrong", isPresented: Binding<Bool>(
-            get: { alertMessage != nil },
-            set: { if !$0 { alertMessage = nil } }
-        )) {
+        .alert(
+            "Something went wrong",
+            isPresented: Binding<Bool>(
+                get: { alertMessage != nil },
+                set: { if !$0 { alertMessage = nil } }
+            )
+        ) {
             Button("OK", role: .cancel) { alertMessage = nil }
         } message: {
             Text(alertMessage ?? "")
@@ -80,6 +85,25 @@ struct FoodLogView: View {
     private var listContent: some View {
         List {
             Section {
+                FoodLogSuggestionsView(
+                    staticSuggestions: staticSuggestions,
+                    aiSuggestions: app.foodLogRecommendations,
+                    isLoading: isLoadingRecommendations,
+                    onSelectSuggestion: viewModel.applySuggestion,
+                    onSelectRecommendation: { recommendation in
+                        selectedRecommendation = recommendation
+                    }
+                )
+                if let recommendationsError,
+                    !recommendationsError.isEmpty
+                {
+                    Text(recommendationsError)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
                 FoodLogFormView(
                     viewModel: viewModel,
                     loggingLevel: app.foodLoggingLevel,
@@ -90,33 +114,32 @@ struct FoodLogView: View {
             }
 
             Section {
-                FoodLogSuggestionsView(
-                    staticSuggestions: staticSuggestions,
-                    aiSuggestions: app.foodLogRecommendations,
-                    isLoading: isLoadingRecommendations,
-                    onRefresh: { Task { await loadRecommendations(force: true) } },
-                    onSelectSuggestion: viewModel.applySuggestion,
-                    onSelectRecommendation: { recommendation in
-                        selectedRecommendation = recommendation
-                    }
-                )
-                if let recommendationsError,
-                   !recommendationsError.isEmpty {
-                    Text(recommendationsError)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section(header: Text("Food History")) {
                 if isLoading {
                     ProgressView("Loading meals…")
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
-                    FoodLogHistoryView(items: app.foodLogItems) { item in
+                    FoodLogHistoryView(
+                        items: app.foodLogItems,
+                        mode: foodHistoryMode
+                    ) { item in
                         Task { await delete(item) }
                     }
                 }
+            } header: {
+                HStack {
+                    Text("Food History")
+                        .font(.headline)
+                    Spacer()
+                    Picker("Range", selection: $foodHistoryMode) {
+                        ForEach(FoodLogHistoryGraphMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 140)
+                    .labelsHidden()
+                }
+                .padding(.bottom, 4)
             }
         }
         .listStyle(.insetGrouped)
@@ -216,7 +239,8 @@ struct FoodLogView: View {
 
     private func hideKeyboard() {
         #if canImport(UIKit)
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         #endif
     }
 }
