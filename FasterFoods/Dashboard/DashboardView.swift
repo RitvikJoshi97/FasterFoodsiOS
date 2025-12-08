@@ -5,6 +5,7 @@
 //  Created by Ritvik Joshi on 11/04/25.
 //
 
+import Foundation
 import SwiftUI
 import UIKit
 
@@ -651,11 +652,11 @@ struct GoalsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Goal Setting", systemImage: "sparkles")
+            Label("Goals and Game Plan", systemImage: "flag.checkered")
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            Text("Capture your long-form fitness goals and get inspired by community suggestions.")
+            Text("Tell us your goals and let us help curate a game plan.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -780,12 +781,9 @@ struct GoalsSection: View {
                     .fontWeight(.semibold)
 
                 Group {
-                    if let attributed = try? AttributedString(
-                        markdown: gamePlanPreview,
-                        options: .init(
-                            interpretedSyntax: .full,
-                            failurePolicy: .returnPartiallyParsedIfPossible
-                        )
+                    if let attributed = makeGamePlanAttributedString(
+                        from: gamePlanPreview,
+                        paragraphSpacing: 8
                     ) {
                         Text(attributed)
                     } else {
@@ -1072,14 +1070,49 @@ struct GoalsSection: View {
     }
 
     private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: dateString) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .medium
-            return displayFormatter.string(from: date)
+        guard let date = parseGoalDate(dateString) else { return dateString }
+
+        if Calendar.current.isDateInToday(date) {
+            return "Today at \(GoalsSection.timeFormatter.string(from: date))"
         }
-        return dateString
+        if Calendar.current.isDateInYesterday(date) {
+            return "Yesterday at \(GoalsSection.timeFormatter.string(from: date))"
+        }
+
+        return GoalsSection.fullDateFormatter.string(from: date)
     }
+
+    private func parseGoalDate(_ dateString: String) -> Date? {
+        if let date = GoalsSection.isoFormatterWithFractional.date(from: dateString) {
+            return date
+        }
+        return GoalsSection.isoFormatter.date(from: dateString)
+    }
+
+    private static let isoFormatterWithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let fullDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     @MainActor
     private func loadRecommendations() async {
@@ -1110,12 +1143,9 @@ struct GamePlanDetailView: View {
         NavigationStack {
             ScrollView {
                 Group {
-                    if let attributed = try? AttributedString(
-                        markdown: markdown,
-                        options: .init(
-                            interpretedSyntax: .full,
-                            failurePolicy: .returnPartiallyParsedIfPossible
-                        )
+                    if let attributed = makeGamePlanAttributedString(
+                        from: markdown,
+                        paragraphSpacing: 12
                     ) {
                         Text(attributed)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1139,6 +1169,30 @@ struct GamePlanDetailView: View {
             }
         }
     }
+}
+
+private func makeGamePlanAttributedString(
+    from markdown: String,
+    paragraphSpacing: CGFloat
+) -> AttributedString? {
+    guard
+        var attributed = try? AttributedString(
+            markdown: markdown,
+            options: .init(
+                interpretedSyntax: .full,
+                failurePolicy: .returnPartiallyParsedIfPossible
+            )
+        )
+    else { return nil }
+
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.paragraphSpacing = paragraphSpacing
+
+    let mutable = NSMutableAttributedString(attributedString: NSAttributedString(attributed))
+    let range = NSRange(location: 0, length: mutable.length)
+    mutable.addAttribute(NSAttributedString.Key.paragraphStyle, value: paragraphStyle, range: range)
+
+    return AttributedString(mutable)
 }
 
 struct GamePlanContent {

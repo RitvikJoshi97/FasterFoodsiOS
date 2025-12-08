@@ -15,22 +15,19 @@ struct SleepCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Sleep")
-                .font(.title3)
-                .fontWeight(.semibold)
-
-            Spacer()
+                .font(.headline)
 
             Text("7h sleep yesterday")
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 26, weight: .bold))
 
             Text("Recommended sleep: 8h for today")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .frame(maxWidth: .infinity, minHeight: 150)
+        .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.blue.opacity(0.12))

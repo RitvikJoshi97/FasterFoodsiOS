@@ -67,7 +67,7 @@ struct WorkoutHistoryList: View {
     }
 
     private func parameterSummary(for item: WorkoutLogItem) -> String {
-        item.parameters
+        return item.parameters
             .sorted { $0.key < $1.key }
             .compactMap { key, value in
                 // Hide internal metadata from HealthKit imports
@@ -93,7 +93,8 @@ struct WorkoutHistoryList: View {
     }
 
     private func parse(dateString: String) -> Date? {
-        isoFormatterWithFractional.date(from: dateString) ?? isoFormatter.date(from: dateString)
+        return isoFormatterWithFractional.date(from: dateString)
+            ?? isoFormatter.date(from: dateString)
     }
 }
 
