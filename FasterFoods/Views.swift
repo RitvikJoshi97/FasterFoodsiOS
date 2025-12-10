@@ -336,7 +336,7 @@ struct SplashView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 20) {
-                if let logo = UIImage(named: colorScheme == .dark ? "dark_icon" : "light_icon") {
+                if let logo = UIImage(named: "dark_icon") {
                     Image(uiImage: logo)
                         .resizable()
                         .scaledToFit()
