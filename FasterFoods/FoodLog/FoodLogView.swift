@@ -6,6 +6,7 @@ import SwiftUI
 
 struct FoodLogView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @StateObject private var viewModel = FoodLogViewModel()
     @State private var mealDate = Date()
     @State private var isSubmitting = false
@@ -159,9 +160,11 @@ struct FoodLogView: View {
                 _ = try await app.addFoodLogItem(request)
                 viewModel.reset(for: app.foodLoggingLevel)
                 mealDate = Date()
+                toastService.show("Food log saved")
                 hideKeyboard()
             } catch {
                 alertMessage = error.localizedDescription
+                toastService.show("Could not save food log.", style: .error)
             }
             isSubmitting = false
         }

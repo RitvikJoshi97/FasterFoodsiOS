@@ -2,25 +2,26 @@ import SwiftUI
 
 struct AddFoodLogItemSheet: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = FoodLogViewModel()
     @State private var mealDate = Date()
     @State private var isSubmitting = false
     @State private var alertMessage: String?
     @FocusState private var isItemNameFocused: Bool
-    
+
     private let mealTimeOptions = FoodLogViewModel.MealTime.allCases
     private let portionOptions = FoodLogViewModel.PortionSize.allCases
     private let moodOptions = FoodLogViewModel.Mood.allCases
     private let categoryOptions = FoodLogViewModel.MealCategory.allCases
-    
+
     private var alertBinding: Binding<Bool> {
         Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
         )
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -28,7 +29,7 @@ struct AddFoodLogItemSheet: View {
                     TextField("What did you eat?", text: $viewModel.itemName)
                         .textInputAutocapitalization(.sentences)
                         .focused($isItemNameFocused)
-                    
+
                     HStack(spacing: 12) {
                         Picker("", selection: $viewModel.mealTime) {
                             ForEach(mealTimeOptions) { option in
@@ -37,18 +38,25 @@ struct AddFoodLogItemSheet: View {
                         }
                         .pickerStyle(.menu)
                         .onChange(of: viewModel.mealTime) { oldValue, newValue in
-                            if let adjusted = Calendar.current.date(bySettingHour: hour(for: newValue), minute: 0, second: 0, of: mealDate) {
+                            if let adjusted = Calendar.current.date(
+                                bySettingHour: hour(for: newValue), minute: 0, second: 0,
+                                of: mealDate)
+                            {
                                 mealDate = adjusted
                             }
                         }
-                        DatePicker("", selection: $mealDate, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                            .onChange(of: mealDate) { oldValue, newValue in
-                                viewModel.adjustMealTime(basedOn: newValue)
-                            }
+                        DatePicker(
+                            "", selection: $mealDate, displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .labelsHidden()
+                        .onChange(of: mealDate) { oldValue, newValue in
+                            viewModel.adjustMealTime(basedOn: newValue)
+                        }
                     }
-                    
-                    if app.foodLoggingLevel == .beginner || app.foodLoggingLevel == .intermediate || app.foodLoggingLevel == .advanced {
+
+                    if app.foodLoggingLevel == .beginner || app.foodLoggingLevel == .intermediate
+                        || app.foodLoggingLevel == .advanced
+                    {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Portion size")
                                 .font(.subheadline)
@@ -60,7 +68,7 @@ struct AddFoodLogItemSheet: View {
                             }
                             .pickerStyle(.segmented)
                         }
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             Text("How was the meal?")
                                 .font(.subheadline)
@@ -73,7 +81,7 @@ struct AddFoodLogItemSheet: View {
                             .pickerStyle(.segmented)
                         }
                     }
-                    
+
                     if app.foodLoggingLevel != .beginner {
                         TextField("Calories (kcal)", text: $viewModel.calories)
                             .keyboardType(.numberPad)
@@ -81,7 +89,7 @@ struct AddFoodLogItemSheet: View {
                             .keyboardType(.decimalPad)
                         TextField("Fat (g)", text: $viewModel.fat)
                             .keyboardType(.decimalPad)
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Meal focus")
                                 .font(.subheadline)
@@ -94,7 +102,7 @@ struct AddFoodLogItemSheet: View {
                             .pickerStyle(.menu)
                         }
                     }
-                    
+
                     if app.foodLoggingLevel == .advanced {
                         DisclosureGroup("Advanced tracking") {
                             VStack(alignment: .leading, spacing: 16) {
@@ -109,17 +117,18 @@ struct AddFoodLogItemSheet: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                                
+
                                 TextField("Hydration notes", text: $viewModel.hydration)
                                 TextField("Digestive feedback", text: $viewModel.digestionFeedback)
                                 TextField("Energy changes", text: $viewModel.energyChanges)
-                                TextField("Mind–body connection", text: $viewModel.mindBodyConnection)
+                                TextField(
+                                    "Mind–body connection", text: $viewModel.mindBodyConnection)
                             }
                             .padding(.top, 8)
                         }
                     }
                 }
-                
+
                 Section {
                     Button {
                         HapticSoundPlayer.shared.playPrimaryTap()
@@ -154,13 +163,13 @@ struct AddFoodLogItemSheet: View {
                 }
             }
             .alert("Something went wrong", isPresented: alertBinding) {
-                Button("OK", role: .cancel) { }
+                Button("OK", role: .cancel) {}
             } message: {
                 Text(alertMessage ?? "Please try again later.")
             }
         }
     }
-    
+
     private func hour(for option: FoodLogViewModel.MealTime) -> Int {
         switch option {
         case .morning: return 8
@@ -168,7 +177,7 @@ struct AddFoodLogItemSheet: View {
         case .evening: return 19
         }
     }
-    
+
     private func logMeal() {
         guard viewModel.canLogEntry else { return }
         isSubmitting = true
@@ -176,9 +185,11 @@ struct AddFoodLogItemSheet: View {
         Task { @MainActor in
             do {
                 _ = try await app.addFoodLogItem(request)
+                toastService.show("Food log saved")
                 dismiss()
             } catch {
                 alertMessage = error.localizedDescription
+                toastService.show("Could not save food log.", style: .error)
             }
             isSubmitting = false
         }

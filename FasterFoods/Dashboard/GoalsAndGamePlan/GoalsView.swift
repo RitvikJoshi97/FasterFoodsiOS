@@ -8,8 +8,6 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
 
     @State private var savedGoals: [Goal] = []
     @State private var isLoading = true
-    @State private var statusMessage: String?
-    @State private var isSuccess = false
     @State private var showAddGoal = false
     @State private var showExpandedGamePlan = false
     @State private var isGoalsExpanded = false
@@ -34,7 +32,6 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
                     if hasGamePlanContent {
                         gamePlanView { showExpandedGamePlan = true }
                     }
-                    statusMessageView
                 }
             }
         }
@@ -43,8 +40,6 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
             NavigationStack {
                 AddGoalView { goal in
                     savedGoals.insert(goal, at: 0)
-                    statusMessage = "Goal saved. Keep up the great work!"
-                    isSuccess = true
                 }
             }
         }
@@ -138,23 +133,6 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
                     )
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var statusMessageView: some View {
-        if let message = statusMessage {
-            HStack(spacing: 8) {
-                Image(
-                    systemName: isSuccess
-                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(isSuccess ? .green : .red)
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(isSuccess ? .green : .red)
-            }
-            .padding(.top, 4)
         }
     }
 

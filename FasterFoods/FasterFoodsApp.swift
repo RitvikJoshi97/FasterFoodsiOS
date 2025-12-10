@@ -5,13 +5,14 @@
 //  Created by Ritvik Joshi on 07/08/25.
 //
 
-import SwiftUI
 import GoogleSignIn
 import Intents
+import SwiftUI
 
 @main
 struct FasterFoodsApp: App {
     @StateObject private var app = AppState()
+    @StateObject private var toastService = ToastService()
 
     init() {
         // Configure Google Sign In once at app startup
@@ -42,6 +43,8 @@ struct FasterFoodsApp: App {
             .animation(.easeInOut(duration: 0.4), value: app.isBootstrapping)
             .animation(.easeInOut(duration: 0.4), value: app.isAuthenticated)
             .environmentObject(app)
+            .environmentObject(toastService)
+            .toastHost(using: toastService)
             .onOpenURL { url in
                 GIDSignIn.sharedInstance.handle(url)
             }

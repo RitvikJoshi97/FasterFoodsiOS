@@ -4,13 +4,12 @@ struct AddGoalView: View {
     let onGoalSaved: (Goal) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var toastService: ToastService
     @State private var goalDescription = ""
     @State private var recommendations: [GoalRecommendation] = []
     @State private var selectedRecommendation: GoalRecommendation?
     @State private var isLoadingRecommendations = true
     @State private var isSubmitting = false
-    @State private var statusMessage: String?
-    @State private var isSuccess = false
     @FocusState private var isGoalFieldFocused: Bool
 
     private var isFormValid: Bool {
@@ -22,7 +21,6 @@ struct AddGoalView: View {
             VStack(alignment: .leading, spacing: 20) {
                 recommendationsSection
                 goalEditor
-                statusMessageView
             }
             .padding(.horizontal)
             .padding(.vertical, 16)
@@ -76,9 +74,6 @@ struct AddGoalView: View {
                             if newValue != selectedText && newValue != selected.description {
                                 selectedRecommendation = nil
                             }
-                        }
-                        if !newValue.isEmpty {
-                            statusMessage = nil
                         }
                     }
 
@@ -169,22 +164,6 @@ struct AddGoalView: View {
         }
     }
 
-    @ViewBuilder
-    private var statusMessageView: some View {
-        if let message = statusMessage {
-            HStack(spacing: 8) {
-                Image(
-                    systemName: isSuccess
-                        ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(isSuccess ? .green : .red)
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(isSuccess ? .green : .red)
-            }
-        }
-    }
-
     @MainActor
     private func loadRecommendationsIfNeeded() async {
         guard recommendations.isEmpty, isLoadingRecommendations else { return }
@@ -202,7 +181,6 @@ struct AddGoalView: View {
         guard isFormValid else { return }
 
         isSubmitting = true
-        statusMessage = nil
 
         Task {
             do {
@@ -221,15 +199,13 @@ struct AddGoalView: View {
                 await MainActor.run {
                     onGoalSaved(newGoal)
                     isSubmitting = false
-                    isSuccess = true
-                    statusMessage = "Goal saved. Keep up the great work!"
+                    toastService.show("Goal saved")
                     dismiss()
                 }
             } catch {
                 await MainActor.run {
                     isSubmitting = false
-                    isSuccess = false
-                    statusMessage = "Could not save goal. Please try again."
+                    toastService.show("Could not save goal. Please try again.", style: .error)
                 }
             }
         }
