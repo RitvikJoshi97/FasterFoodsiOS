@@ -49,8 +49,8 @@ struct FoodLogCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // Right column: macros up top, graph below
-            VStack(alignment: .trailing, spacing: 8) {
-                HStack(spacing: 8) {
+            VStack(alignment: .trailing, spacing: 4) {
+                HStack(spacing: 12) {
                     ForEach(summary.macros) { macro in
                         MacroRingView(macro: macro)
                     }
