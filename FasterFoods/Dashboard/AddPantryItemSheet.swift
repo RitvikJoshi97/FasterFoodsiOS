@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AddPantryItemSheet: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @Environment(\.dismiss) private var dismiss
     @State private var newItemName: String = ""
     @State private var newQuantity: String = ""
@@ -10,20 +11,22 @@ struct AddPantryItemSheet: View {
     @State private var isAddingItem: Bool = false
     @State private var alertMessage: String?
     @FocusState private var focusedField: Field?
-    
+
     private enum Field: Hashable { case name, quantity, unit, expiry }
-    
+
     private let commonUnits = [
         "pieces", "lbs", "kg", "oz", "g", "pints", "liters", "cups", "tbsp", "tsp",
-        "loaves", "containers", "bottles", "cans", "bags", "boxes"
+        "loaves", "containers", "bottles", "cans", "bags", "boxes",
     ]
-    
+
     private var unitTagBinding: Binding<String> {
         Binding {
             newUnit.isEmpty ? commonUnits.first ?? "pieces" : newUnit
-        } set: { newUnit = $0.isEmpty ? (commonUnits.first ?? "pieces") : $0 }
+        } set: {
+            newUnit = $0.isEmpty ? (commonUnits.first ?? "pieces") : $0
+        }
     }
-    
+
     private let inputDateFormatters: [DateFormatter] = {
         let iso = DateFormatter()
         iso.dateFormat = "yyyy-MM-dd"
@@ -33,29 +36,29 @@ struct AddPantryItemSheet: View {
         alt.timeZone = TimeZone(secondsFromGMT: 0)
         return [iso, alt]
     }()
-    
+
     private let isoFormatterBasic: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
-    
+
     private var alertBinding: Binding<Bool> {
         Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })
     }
-    
+
     private var canAddItem: Bool {
         !newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Item Details") {
                     TextField("Item name", text: $newItemName)
                         .focused($focusedField, equals: .name)
-                    
+
                     HStack {
                         TextField("Quantity", text: $newQuantity)
                             .keyboardType(.numbersAndPunctuation)
@@ -67,11 +70,11 @@ struct AddPantryItemSheet: View {
                         }
                         .pickerStyle(.menu)
                     }
-                    
+
                     TextField("Expiry date (optional)", text: $expiryText)
                         .focused($focusedField, equals: .expiry)
                 }
-                
+
                 Section {
                     Button {
                         HapticSoundPlayer.shared.playPrimaryTap()
@@ -103,13 +106,13 @@ struct AddPantryItemSheet: View {
                 }
             }
             .alert("Something went wrong", isPresented: alertBinding) {
-                Button("OK", role: .cancel) { }
+                Button("OK", role: .cancel) {}
             } message: {
                 Text(alertMessage ?? "Please try again later.")
             }
         }
     }
-    
+
     private func addItem() async {
         guard canAddItem else { return }
         if isAddingItem { return }
@@ -118,20 +121,24 @@ struct AddPantryItemSheet: View {
         do {
             try await app.addPantryItem(
                 name: newItemName,
-                quantity: newQuantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newQuantity,
-                unit: newUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newUnit,
+                quantity: newQuantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? nil : newQuantity,
+                unit: newUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? nil : newUnit,
                 expiryDate: normalizedExpiryString()
             )
             await MainActor.run {
+                toastService.show("Pantry item added")
                 dismiss()
             }
         } catch {
             await MainActor.run {
                 alertMessage = error.localizedDescription
+                toastService.show("Could not add pantry item.", style: .error)
             }
         }
     }
-    
+
     private func normalizedExpiryString() -> String? {
         let trimmed = expiryText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }

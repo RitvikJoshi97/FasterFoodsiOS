@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AddWorkoutsView: View {
     @ObservedObject var viewModel: WorkoutsViewModel
+    @EnvironmentObject private var toastService: ToastService
     let onSubmit: () -> Void
     let onCancel: () -> Void
     @FocusState private var isFieldFocused: Bool

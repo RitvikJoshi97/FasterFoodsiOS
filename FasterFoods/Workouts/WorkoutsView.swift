@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WorkoutsView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @StateObject private var viewModel = WorkoutsViewModel()
     @StateObject private var healthKitManager = HealthKitWorkoutManager()
     @State private var isLoadingRecommendations = false
@@ -88,9 +89,7 @@ struct WorkoutsView: View {
                     items: app.workoutItems,
                     activities: viewModel.activities,
                     onDelete: { id in
-                        Task {
-                            try? await app.deleteWorkout(id: id)
-                        }
+                        Task { await deleteWorkout(id: id) }
                     })
             } else {
                 Section {
@@ -118,6 +117,16 @@ struct WorkoutsView: View {
         }
     }
 
+    @MainActor
+    private func deleteWorkout(id: String) async {
+        do {
+            try await app.deleteWorkout(id: id)
+            toastService.show("Deleted")
+        } catch {
+            toastService.show("Deleted", style: .error)
+        }
+    }
+
     @ViewBuilder
     private var healthKitSection: some View {
         Section("Health App") {
@@ -135,8 +144,13 @@ struct WorkoutsView: View {
             do {
                 try await app.addWorkout(item)
                 viewModel.resetComposer()
+                await MainActor.run {
+                    toastService.show("Workout added")
+                }
             } catch {
-                print("Failed to add workout: \(error)")
+                await MainActor.run {
+                    toastService.show("Could not add workout.", style: .error)
+                }
             }
         }
     }

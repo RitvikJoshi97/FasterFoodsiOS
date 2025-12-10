@@ -2,18 +2,19 @@ import SwiftUI
 
 struct AddCustomMetricSheet: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = CustomMetricsViewModel()
     @State private var alertMessage: String?
     @FocusState private var isNameFocused: Bool
-    
+
     private var alertBinding: Binding<Bool> {
         Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
         )
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -21,16 +22,16 @@ struct AddCustomMetricSheet: View {
                     TextField("Metric name (e.g., Weight)", text: $viewModel.name)
                         .textInputAutocapitalization(.words)
                         .focused($isNameFocused)
-                    
+
                     HStack(spacing: 12) {
                         TextField("Value", text: $viewModel.value)
                             .keyboardType(.decimalPad)
                         TextField("Unit (e.g., lbs)", text: $viewModel.unit)
                     }
-                    
+
                     DatePicker("Date", selection: $viewModel.date, displayedComponents: .date)
                 }
-                
+
                 Section {
                     Button {
                         HapticSoundPlayer.shared.playPrimaryTap()
@@ -57,24 +58,26 @@ struct AddCustomMetricSheet: View {
                 }
             }
             .alert("Something went wrong", isPresented: alertBinding) {
-                Button("OK", role: .cancel) { }
+                Button("OK", role: .cancel) {}
             } message: {
                 Text(alertMessage ?? "Please try again later.")
             }
         }
     }
-    
+
     private func addMetric() {
         guard let metric = viewModel.makeMetric() else { return }
         Task {
             do {
                 try await app.addCustomMetric(metric)
                 await MainActor.run {
+                    toastService.show("Custom metric added")
                     dismiss()
                 }
             } catch {
                 await MainActor.run {
                     alertMessage = error.localizedDescription
+                    toastService.show("Could not add metric.", style: .error)
                 }
             }
         }

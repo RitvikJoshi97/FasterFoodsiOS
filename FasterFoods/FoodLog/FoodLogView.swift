@@ -210,8 +210,14 @@ struct FoodLogView: View {
     private func delete(_ item: FoodLogItem) async {
         do {
             try await app.deleteFoodLogItem(id: item.id)
+            await MainActor.run {
+                toastService.show("Deleted")
+            }
         } catch {
-            await MainActor.run { alertMessage = error.localizedDescription }
+            await MainActor.run {
+                alertMessage = error.localizedDescription
+                toastService.show("Deleted", style: .error)
+            }
         }
     }
 

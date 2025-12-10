@@ -95,14 +95,14 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
                                     index, goal in
                                     goalCard(for: goal)
                                         .offset(y: CGFloat(index) * 10)
-                                        .padding(.leading, CGFloat(index) * 8)
                                         .shadow(color: .black.opacity(0.14), radius: 8, x: 0, y: 6)
-                                        .opacity(1 - (Double(index) * 0.02))
+                                        .opacity(1)
                                 }
                             }
                             .padding(.vertical, 4)
                             .padding(.trailing, 12)
                             .padding(.top, 4)
+                            .padding(.bottom, 8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                         }
@@ -190,7 +190,7 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
             Spacer()
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color.secondary.opacity(0.15), lineWidth: 1)

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PantryView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @State private var newItemName: String = ""
     @State private var newQuantity: String = ""
     @State private var newUnit: String = "pieces"
@@ -27,25 +28,27 @@ struct PantryView: View {
 
     private let suggestions = [
         "Flour", "Sugar", "Salt", "Olive Oil", "Canned Tomatoes",
-        "Beans", "Lentils", "Spices", "Coffee", "Tea"
+        "Beans", "Lentils", "Spices", "Coffee", "Tea",
     ]
 
     private let defaultUnits: [String: String] = [
         "Flour": "lbs", "Sugar": "lbs", "Salt": "lbs", "Olive Oil": "bottles",
         "Canned Tomatoes": "cans", "Beans": "cans", "Lentils": "lbs", "Spices": "oz",
-        "Coffee": "lbs", "Tea": "bags"
+        "Coffee": "lbs", "Tea": "bags",
     ]
 
     private let commonUnits = [
         "pieces", "lbs", "kg", "oz", "g", "pints", "liters", "cups", "tbsp", "tsp",
-        "loaves", "containers", "bottles", "cans", "bags", "boxes"
+        "loaves", "containers", "bottles", "cans", "bags", "boxes",
     ]
 
     private let collapsedSuggestionChipLimit = 4
     private var unitTagBinding: Binding<String> {
         Binding {
             newUnit.isEmpty ? commonUnits.first ?? "pieces" : newUnit
-        } set: { newUnit = $0.isEmpty ? (commonUnits.first ?? "pieces") : $0 }
+        } set: {
+            newUnit = $0.isEmpty ? (commonUnits.first ?? "pieces") : $0
+        }
     }
 
     private let inputDateFormatters: [DateFormatter] = {
@@ -96,7 +99,9 @@ struct PantryView: View {
     }
 
     private var collapsedRecommendationChips: [ShoppingRecommendation] {
-        Array(app.pantryRecommendations.prefix(max(0, collapsedSuggestionChipLimit - collapsedSuggestionChips.count)))
+        Array(
+            app.pantryRecommendations.prefix(
+                max(0, collapsedSuggestionChipLimit - collapsedSuggestionChips.count)))
     }
 
     private var additionalRecommendationChips: [ShoppingRecommendation] {
@@ -123,7 +128,7 @@ struct PantryView: View {
             await loadPantryRecommendations(force: true)
         }
         .alert("Something went wrong", isPresented: alertBinding) {
-            Button("OK", role: .cancel) { }
+            Button("OK", role: .cancel) {}
         } message: {
             Text(alertMessage ?? "Please try again later.")
         }
@@ -285,7 +290,8 @@ struct PantryView: View {
                     }
                     .animation(.easeInOut(duration: 0.25), value: showFullSuggestionList)
                     if let recommendationsError,
-                       !recommendationsError.isEmpty {
+                        !recommendationsError.isEmpty
+                    {
                         Text(recommendationsError)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -300,8 +306,8 @@ struct PantryView: View {
                 let uncheckedCount = app.pantryItems.filter { !$0.checked }.count
                 HStack {
                     (Text("Your Pantry (")
-                     + Text("\(uncheckedCount)")
-                     + Text("/\(app.pantryItems.count)"))
+                        + Text("\(uncheckedCount)")
+                        + Text("/\(app.pantryItems.count))"))
                     Spacer()
                     if !app.pantryItems.isEmpty {
                         Button {
@@ -375,7 +381,8 @@ struct PantryView: View {
                     .font(.headline)
                     .strikethrough(item.checked)
                 if let expiry = item.expiryDate,
-                   let date = parseDate(expiry) {
+                    let date = parseDate(expiry)
+                {
                     HStack(spacing: 8) {
                         if isExpired(date) {
                             Text("Expired")
@@ -399,12 +406,14 @@ struct PantryView: View {
                         Text("Quantity: \(quantity) \(item.unit ?? "")")
                     }
                     if let expiry = item.expiryDate,
-                       let date = parseDate(expiry) {
+                        let date = parseDate(expiry)
+                    {
                         Text("Expires: \(dateFormatter.string(from: date))")
                             .foregroundStyle(.secondary)
                     }
                     if let added = item.addedOn,
-                       let date = parseDate(added) {
+                        let date = parseDate(added)
+                    {
                         Text("Added: \(dateFormatter.string(from: date))")
                             .foregroundStyle(.secondary)
                     }
@@ -412,20 +421,17 @@ struct PantryView: View {
                 .font(.caption)
             }
             Spacer()
-            if isDeleting {
-                ProgressView().scaleEffect(0.7)
-            } else {
-                Button(role: .destructive) {
-                    Task { await delete(item) }
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.plain)
-                .disabled(isToggling)
-            }
         }
         .padding(.vertical, 6)
         .opacity(isDeleting ? 0.4 : 1)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                Task { await delete(item) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .disabled(isToggling || isDeleting)
+        }
     }
 
     private var canAddItem: Bool {
@@ -538,7 +544,8 @@ struct PantryView: View {
 
     private func isExpiringSoon(_ date: Date) -> Bool {
         let startOfToday = Calendar.current.startOfDay(for: Date())
-        guard let days = Calendar.current.dateComponents([.day], from: startOfToday, to: date).day else { return false }
+        guard let days = Calendar.current.dateComponents([.day], from: startOfToday, to: date).day
+        else { return false }
         return days >= 0 && days <= 7
     }
 
@@ -550,8 +557,10 @@ struct PantryView: View {
         do {
             try await app.addPantryItem(
                 name: newItemName,
-                quantity: newQuantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newQuantity,
-                unit: newUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newUnit,
+                quantity: newQuantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? nil : newQuantity,
+                unit: newUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? nil : newUnit,
                 expiryDate: normalizedExpiryString()
             )
             newItemName = ""
@@ -559,8 +568,10 @@ struct PantryView: View {
             newUnit = commonUnits.first ?? "pieces"
             expiryText = ""
             focusedField = .name
+            toastService.show("Pantry item added")
         } catch {
             alertMessage = error.localizedDescription
+            toastService.show("Could not add pantry item.", style: .error)
         }
     }
 
@@ -581,8 +592,10 @@ struct PantryView: View {
         defer { deletingIds.remove(item.id) }
         do {
             try await app.deletePantryItem(id: item.id)
+            toastService.show("Deleted")
         } catch {
             alertMessage = error.localizedDescription
+            toastService.show("Deleted", style: .error)
         }
     }
 

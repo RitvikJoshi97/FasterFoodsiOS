@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CustomMetricsView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @StateObject private var viewModel = CustomMetricsViewModel()
     var embedsInNavigationStack = true
 
@@ -18,26 +19,28 @@ struct CustomMetricsView: View {
     }
 
     private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+        List {
+            Section {
                 MetricComposer(
                     viewModel: viewModel,
                     quickChips: CustomMetricsViewModel.quickChips
                 ) {
                     addMetric()
                 }
+                .listRowInsets(EdgeInsets())
+            }
 
+            Section {
                 MetricSummaryCard(stats: viewModel.summary(for: app.customMetrics))
+            }
 
-                MetricHistorySection(metrics: app.customMetrics) { id in
-                    Task {
-                        try? await app.deleteCustomMetric(id: id)
-                    }
+            MetricHistorySection(metrics: app.customMetrics) { id in
+                Task {
+                    await deleteMetric(id: id)
                 }
             }
-            .padding(.vertical, 24)
-            .padding(.horizontal, 20)
         }
+        .listStyle(.insetGrouped)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Custom metrics")
     }
@@ -49,11 +52,23 @@ struct CustomMetricsView: View {
                 try await app.addCustomMetric(metric)
                 await MainActor.run {
                     viewModel.resetComposer()
+                    toastService.show("Custom metric added")
                 }
             } catch {
-                // Silently handle errors - user can retry if needed
-                print("Error adding custom metric: \(error)")
+                await MainActor.run {
+                    toastService.show("Could not add metric.", style: .error)
+                }
             }
+        }
+    }
+
+    @MainActor
+    private func deleteMetric(id: String) async {
+        do {
+            try await app.deleteCustomMetric(id: id)
+            toastService.show("Deleted")
+        } catch {
+            toastService.show("Deleted", style: .error)
         }
     }
 }

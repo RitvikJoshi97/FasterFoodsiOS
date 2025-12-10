@@ -17,11 +17,8 @@ struct MetricHistorySection: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Your metrics")
-                .font(.headline)
-
-            if metrics.isEmpty {
+        if metrics.isEmpty {
+            Section("Your metrics") {
                 VStack(spacing: 12) {
                     Image(systemName: "waveform.path.ecg")
                         .font(.system(size: 40, weight: .semibold))
@@ -36,23 +33,19 @@ struct MetricHistorySection: View {
                     .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(28)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color(.secondarySystemGroupedBackground))
-                )
-            } else {
-                ForEach(groupedMetrics.keys.sorted(), id: \.self) { key in
-                    if let items = groupedMetrics[key] {
-                        MetricTypeGroup(
-                            title: key,
-                            entries: items.sorted { $0.date > $1.date },
-                            latestDisplay: latestBadge(for: items),
-                            trendDisplay: trendBadge(for: items),
-                            deleteAction: onDelete,
-                            dateFormatter: displayFormatter,
-                            isoFormatter: isoFormatter)
-                    }
+                .padding(.vertical, 24)
+            }
+        } else {
+            ForEach(groupedMetrics.keys.sorted(), id: \.self) { key in
+                if let items = groupedMetrics[key] {
+                    MetricTypeGroup(
+                        title: key,
+                        entries: items.sorted { $0.date > $1.date },
+                        latestDisplay: latestBadge(for: items),
+                        trendDisplay: trendBadge(for: items),
+                        deleteAction: onDelete,
+                        dateFormatter: displayFormatter,
+                        isoFormatter: isoFormatter)
                 }
             }
         }
@@ -98,7 +91,14 @@ struct MetricTypeGroup: View {
     let isoFormatter: ISO8601DateFormatter
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        Section {
+            ForEach(entries) { entry in
+                MetricEntryRow(
+                    entry: entry,
+                    formattedDate: formattedDate(for: entry),
+                    onDelete: { deleteAction(entry.id) })
+            }
+        } header: {
             HStack(spacing: 8) {
                 Text(title)
                     .font(.headline)
@@ -119,13 +119,6 @@ struct MetricTypeGroup: View {
                         .clipShape(Capsule())
                 }
             }
-
-            ForEach(entries) { entry in
-                MetricEntryRow(
-                    entry: entry,
-                    formattedDate: formattedDate(for: entry),
-                    onDelete: { deleteAction(entry.id) })
-            }
         }
     }
 
@@ -141,7 +134,7 @@ struct MetricEntryRow: View {
     let onDelete: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(entry.value) \(entry.unit)")
                     .font(.headline)
@@ -150,15 +143,12 @@ struct MetricEntryRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.plain)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+        .contentShape(Rectangle())
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 }

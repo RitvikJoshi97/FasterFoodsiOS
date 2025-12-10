@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AddShoppingItemSheet: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @Environment(\.dismiss) private var dismiss
     @State private var newItemName: String = ""
     @State private var newItemQuantity: String = ""
@@ -13,18 +14,18 @@ struct AddShoppingItemSheet: View {
     @State private var showNewListField: Bool = false
     @State private var alertMessage: String?
     @FocusState private var focusedField: Field?
-    
+
     private let commonUnits = [
         "pieces", "lbs", "kg", "oz", "g", "pints", "liters", "cups", "tbsp", "tsp",
-        "loaves", "containers", "bottles", "cans", "bags", "boxes"
+        "loaves", "containers", "bottles", "cans", "bags", "boxes",
     ]
-    
+
     private let newListSentinel = "__new_list__"
-    
+
     private enum Field: Hashable {
         case itemName, quantity, unit, newListName
     }
-    
+
     private var unitSelection: Binding<String> {
         Binding {
             let trimmed = newItemUnit.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -33,14 +34,14 @@ struct AddShoppingItemSheet: View {
             newItemUnit = newValue
         }
     }
-    
+
     private var alertBinding: Binding<Bool> {
         Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
         )
     }
-    
+
     private var canAddItem: Bool {
         let hasItem = !newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if showNewListField || selectedListId == newListSentinel {
@@ -51,14 +52,14 @@ struct AddShoppingItemSheet: View {
         }
         return hasItem && !selectedListId.isEmpty
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Item Details") {
                     TextField("Item name", text: $newItemName)
                         .focused($focusedField, equals: .itemName)
-                    
+
                     HStack {
                         TextField("Quantity", text: $newItemQuantity)
                             .keyboardType(.numbersAndPunctuation)
@@ -71,7 +72,7 @@ struct AddShoppingItemSheet: View {
                         .pickerStyle(.menu)
                     }
                 }
-                
+
                 Section("List") {
                     if app.shoppingLists.isEmpty {
                         Text("Default")
@@ -97,13 +98,13 @@ struct AddShoppingItemSheet: View {
                             }
                         }
                     }
-                    
+
                     if showNewListField {
                         TextField("New list name", text: $newListName)
                             .focused($focusedField, equals: .newListName)
                     }
                 }
-                
+
                 Section {
                     Button {
                         HapticSoundPlayer.shared.playPrimaryTap()
@@ -140,13 +141,13 @@ struct AddShoppingItemSheet: View {
                 }
             }
             .alert("Something went wrong", isPresented: alertBinding) {
-                Button("OK", role: .cancel) { }
+                Button("OK", role: .cancel) {}
             } message: {
                 Text(alertMessage ?? "Please try again later.")
             }
         }
     }
-    
+
     @MainActor
     private func addItem() async {
         guard canAddItem else { return }
@@ -155,7 +156,7 @@ struct AddShoppingItemSheet: View {
         defer { isAddingItem = false }
         do {
             var targetListId = selectedListId
-            
+
             if app.shoppingLists.isEmpty {
                 let list = try await app.createShoppingList(name: "Default")
                 targetListId = list.id
@@ -172,19 +173,23 @@ struct AddShoppingItemSheet: View {
                 targetListId = fallback
                 selectedListId = fallback
             }
-            
+
             guard !targetListId.isEmpty && targetListId != newListSentinel else { return }
-            
+
             try await app.addShoppingItem(
                 to: targetListId,
                 name: newItemName,
-                quantity: newItemQuantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newItemQuantity,
-                unit: newItemUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : newItemUnit,
+                quantity: newItemQuantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? nil : newItemQuantity,
+                unit: newItemUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? nil : newItemUnit,
                 listLabel: nil
             )
+            toastService.show("Shopping item added")
             dismiss()
         } catch {
             alertMessage = error.localizedDescription
+            toastService.show("Could not add shopping item.", style: .error)
         }
     }
 }

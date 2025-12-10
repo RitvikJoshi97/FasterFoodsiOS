@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ShoppingListView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @State private var newListName: String = ""
     @State private var selectedListId: String = ""
     @State private var newItemName: String = ""
@@ -500,6 +501,7 @@ struct ShoppingListView: View {
                     .onDelete { indexSet in
                         Task { await deleteItems(at: indexSet, in: list, items: items) }
                     }
+                    .tint(.accentColor)
                 }
             }
         }
@@ -791,8 +793,10 @@ struct ShoppingListView: View {
             newItemQuantity = ""
             newItemUnit = ""
             focusedField = nil
+            toastService.show("Shopping item added")
         } catch {
             alertMessage = error.localizedDescription
+            toastService.show("Could not add shopping item.", style: .error)
         }
     }
 
@@ -816,8 +820,10 @@ struct ShoppingListView: View {
         defer { deletingItemIds.remove(item.id) }
         do {
             try await app.deleteShoppingItem(listId: list.id, itemId: item.id)
+            toastService.show("Deleted")
         } catch {
             alertMessage = error.localizedDescription
+            toastService.show("Deleted", style: .error)
         }
     }
 

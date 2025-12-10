@@ -4,6 +4,7 @@ struct AddGoalView: View {
     let onGoalSaved: (Goal) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var toastService: ToastService
     @State private var goalDescription = ""
     @State private var recommendations: [GoalRecommendation] = []
@@ -56,7 +57,7 @@ struct AddGoalView: View {
     @ViewBuilder
     private var goalEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Your long-form goal")
+            Text("Tell us about your goals")
                 .font(.subheadline)
                 .fontWeight(.medium)
 
@@ -64,9 +65,8 @@ struct AddGoalView: View {
                 TextEditor(text: $goalDescription)
                     .frame(minHeight: 120)
                     .padding(8)
-                    .background(Color.white)
+                    .background(colorScheme == .dark ? Color.black : Color.white)
                     .cornerRadius(10)
-                    .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 3)
                     .focused($isGoalFieldFocused)
                     .onChange(of: goalDescription) { oldValue, newValue in
                         if let selected = selectedRecommendation {
@@ -99,6 +99,7 @@ struct AddGoalView: View {
                 Text("Popular community goals")
                     .font(.subheadline)
                     .fontWeight(.medium)
+                    .foregroundStyle(colorScheme == .dark ? .white : .primary)
                 Spacer()
                 if isLoadingRecommendations {
                     ProgressView()
@@ -109,11 +110,11 @@ struct AddGoalView: View {
             if isLoadingRecommendations {
                 Text("Loading inspiration from the community...")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .secondary)
             } else if recommendations.isEmpty {
                 Text("No suggested goals yet. Check back soon!")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(colorScheme == .dark ? .white.opacity(0.7) : .secondary)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -134,7 +135,10 @@ struct AddGoalView: View {
                                     if let count = recommendation.usageCount {
                                         Text("\(count) keeping this")
                                             .font(.caption2)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(
+                                                colorScheme == .dark
+                                                    ? .white.opacity(0.7) : .secondary
+                                            )
                                             .multilineTextAlignment(.leading)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                     }
