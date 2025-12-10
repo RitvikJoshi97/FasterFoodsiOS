@@ -65,7 +65,7 @@ struct AddGoalView: View {
                 TextEditor(text: $goalDescription)
                     .frame(minHeight: 120)
                     .padding(8)
-                    .background(colorScheme == .dark ? Color.black : Color.white)
+                    .background(colorScheme == .dark ? Color(.systemBackground) : Color.white)
                     .cornerRadius(10)
                     .focused($isGoalFieldFocused)
                     .onChange(of: goalDescription) { oldValue, newValue in
