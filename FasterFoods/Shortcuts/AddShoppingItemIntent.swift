@@ -2,7 +2,8 @@ import AppIntents
 
 struct AddShoppingItemIntent: AppIntent {
     static var title: LocalizedStringResource = "Add Shopping Item"
-    static var description = IntentDescription("Quickly add groceries to any FasterFoods shopping list.")
+    static var description = IntentDescription(
+        "Quickly add groceries to any FasterFoods shopping list.")
     static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static var openAppWhenRun = false
 
@@ -10,7 +11,7 @@ struct AddShoppingItemIntent: AppIntent {
         title: "Item",
         requestValueDialog: IntentDialog("What should I add to your FasterFoods shopping list?")
     )
-    var itemName: String
+    var itemName: FreeformItemEntity
 
     @Parameter(
         title: "Shopping List",
@@ -20,9 +21,10 @@ struct AddShoppingItemIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let service = ShoppingListIntentService()
-        let outcome = try await service.addItem(named: itemName, listId: list?.id)
+        let outcome = try await service.addItem(named: itemName.title, listId: list?.id)
 
-        return .result(dialog: IntentDialog("\(outcome.itemName) was added to \(outcome.listName)."))
+        return .result(
+            dialog: IntentDialog("\(outcome.itemName) was added to \(outcome.listName)."))
     }
 
     static var parameterSummary: some ParameterSummary {

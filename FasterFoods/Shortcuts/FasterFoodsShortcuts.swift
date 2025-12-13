@@ -8,28 +8,34 @@ struct FasterFoodsShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: AddShoppingItemIntent(),
             phrases: [
-                "${applicationName} add {itemName} to my shopping list"
+                "Add ${itemName} to my shopping list on ${applicationName}"
             ],
-            shortTitle: "Add Shopping Item",
+            shortTitle: "Add to Shopping Item",
             systemImageName: "cart.badge.plus"
         )
 
         AppShortcut(
-            intent: AddShoppingItemIntent(),
+            intent: AddFoodLogIntent(),
             phrases: [
-                "Add {itemName} to my shopping list in ${applicationName}"
+                "Add ${itemName} to my food log on ${applicationName}",
+                "${applicationName} add ${itemName} to my food log",
+                "In ${applicationName}, add ${itemName} to my food log",
+                "Log ${itemName} in my food log with ${applicationName}",
             ],
-            shortTitle: "Shopping List Item",
-            systemImageName: "cart.badge.plus"
+            shortTitle: "Add to Food Log",
+            systemImageName: "fork.knife.circle"
         )
 
         AppShortcut(
-            intent: AddShoppingItemIntent(),
+            intent: AddWorkoutItemIntent(),
             phrases: [
-                "In ${applicationName}, add {itemName} to my shopping list"
+                "Add ${itemName} to my workout log on ${applicationName}",
+                "${applicationName} add ${itemName} to my workout log",
+                "In ${applicationName}, add ${itemName} to my workout log",
+                "Log ${itemName} in my workout log with ${applicationName}",
             ],
-            shortTitle: "Use Shopping Shortcut",
-            systemImageName: "cart.badge.plus"
+            shortTitle: "Add to Workout",
+            systemImageName: "figure.run.circle"
         )
     }
 }
