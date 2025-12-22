@@ -18,11 +18,6 @@
 		B50000162FCB3CD800AD7420 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010072FCB3CDC00AD7420 /* APIClient.swift */; };
 		B50000172FCB3CD800AD7420 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010082FCB3CDC00AD7420 /* APIModels.swift */; };
 		B50000182FCB3D0B00AD7420 /* FasterFoodsIntents.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B50010062FCB3CD800AD7420 /* FasterFoodsIntents.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		B50000192FE1234500AD7420 /* AddFoodLogIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B500100C2FE1234500AD7420 /* AddFoodLogIntent.swift */; };
-		B500001A2FE1234500AD7420 /* AddWorkoutItemIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B500100D2FE1234500AD7420 /* AddWorkoutItemIntent.swift */; };
-		B500001B2FE1234500AD7420 /* FoodLogIntentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B500100E2FE1234500AD7420 /* FoodLogIntentService.swift */; };
-		B500001C2FE1234500AD7420 /* WorkoutIntentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B500100F2FE1234500AD7420 /* WorkoutIntentService.swift */; };
-		B500001D2FE12D6A00AD7420 /* FreeformItemEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B50010102FE12D6A00AD7420 /* FreeformItemEntity.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -78,11 +73,6 @@
 		B50010092FCB3CDC00AD7420 /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppGroup.swift; path = FasterFoods/Shared/AppGroup.swift; sourceTree = SOURCE_ROOT; };
 		B500100A2FCB3CDC00AD7420 /* ShoppingListIntentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShoppingListIntentService.swift; path = FasterFoods/Shared/ShoppingListIntentService.swift; sourceTree = SOURCE_ROOT; };
 		B500100B2FCB3CE300AD7420 /* FasterFoodsIntents.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FasterFoodsIntents.entitlements; sourceTree = "<group>"; };
-		B500100C2FE1234500AD7420 /* AddFoodLogIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddFoodLogIntent.swift; path = FasterFoods/Shortcuts/AddFoodLogIntent.swift; sourceTree = SOURCE_ROOT; };
-		B500100D2FE1234500AD7420 /* AddWorkoutItemIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddWorkoutItemIntent.swift; path = FasterFoods/Shortcuts/AddWorkoutItemIntent.swift; sourceTree = SOURCE_ROOT; };
-		B500100E2FE1234500AD7420 /* FoodLogIntentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FoodLogIntentService.swift; path = FasterFoods/Shared/FoodLogIntentService.swift; sourceTree = SOURCE_ROOT; };
-		B500100F2FE1234500AD7420 /* WorkoutIntentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkoutIntentService.swift; path = FasterFoods/Shared/WorkoutIntentService.swift; sourceTree = SOURCE_ROOT; };
-		B50010102FE12D6A00AD7420 /* FreeformItemEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FreeformItemEntity.swift; path = FasterFoods/Shortcuts/FreeformItemEntity.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -176,9 +166,6 @@
 			isa = PBXGroup;
 			children = (
 				B50010012FCB3CD800AD7420 /* AddShoppingItemIntent.swift */,
-				B50010102FE12D6A00AD7420 /* FreeformItemEntity.swift */,
-				B500100C2FE1234500AD7420 /* AddFoodLogIntent.swift */,
-				B500100D2FE1234500AD7420 /* AddWorkoutItemIntent.swift */,
 				B50010022FCB3CD800AD7420 /* ShoppingListEntity.swift */,
 				B50010032FCB3CD800AD7420 /* FasterFoodsShortcuts.swift */,
 				B50010042FCB3CD800AD7420 /* FasterFoodsIntents.swift */,
@@ -196,8 +183,6 @@
 				B50010082FCB3CDC00AD7420 /* APIModels.swift */,
 				B50010092FCB3CDC00AD7420 /* AppGroup.swift */,
 				B500100A2FCB3CDC00AD7420 /* ShoppingListIntentService.swift */,
-				B500100E2FE1234500AD7420 /* FoodLogIntentService.swift */,
-				B500100F2FE1234500AD7420 /* WorkoutIntentService.swift */,
 			);
 			name = "Shared References";
 			sourceTree = "<group>";
@@ -403,15 +388,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				B50000102FCB3CD800AD7420 /* AddShoppingItemIntent.swift in Sources */,
-				B500001D2FE12D6A00AD7420 /* FreeformItemEntity.swift in Sources */,
-				B50000192FE1234500AD7420 /* AddFoodLogIntent.swift in Sources */,
-				B500001A2FE1234500AD7420 /* AddWorkoutItemIntent.swift in Sources */,
 				B50000112FCB3CD800AD7420 /* ShoppingListEntity.swift in Sources */,
 				B50000122FCB3CD800AD7420 /* FasterFoodsShortcuts.swift in Sources */,
 				B50000132FCB3CD800AD7420 /* FasterFoodsIntents.swift in Sources */,
 				B50000142FCB3CD800AD7420 /* ShoppingListIntentService.swift in Sources */,
-				B500001B2FE1234500AD7420 /* FoodLogIntentService.swift in Sources */,
-				B500001C2FE1234500AD7420 /* WorkoutIntentService.swift in Sources */,
 				B50000152FCB3CD800AD7420 /* AppGroup.swift in Sources */,
 				B50000162FCB3CD800AD7420 /* APIClient.swift in Sources */,
 				B50000172FCB3CD800AD7420 /* APIModels.swift in Sources */,

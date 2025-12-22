@@ -27,11 +27,9 @@
 			<key>IntentsSupported</key>
 			<array>
 				<string>AddShoppingItemIntent</string>
-				<string>AddFoodLogIntent</string>
-				<string>AddWorkoutItemIntent</string>
 			</array>
 			<key>NSExtensionUsageDescription</key>
-			<string>Add food items, workout items and shopping items via Siri and Shortcuts.</string>
+			<string>Add shopping items via Siri and Shortcuts.</string>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.intents-service</string>
