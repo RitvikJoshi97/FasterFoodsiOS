@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var hasLoaded = false
     @State private var statusMessage: StatusMessage?
     @State private var showDeleteAlert = false
+    @State private var showOnboardingNextLaunch = false
 
     private let languageOptions: [(code: String, label: String)] = [
         ("en", "English (US)"),
@@ -23,6 +24,20 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    settingsCard(
+                        title: "Help", systemImage: "questionmark.circle",
+                        description: "Get quick guidance when you are stuck."
+                    ) {
+                        settingsActionButton(
+                            title: "Get help", systemImage: "message.fill"
+                        ) {
+                            app.presentAssistant(
+                                title: "Help",
+                                script: .sampleAssistant()
+                            )
+                        }
+                    }
+
                     settingsCard(
                         title: "Preferences", systemImage: "slider.horizontal.3",
                         description:
@@ -135,6 +150,19 @@ struct SettingsView: View {
                         }
                     }
 
+                    if app.currentUser?.role == "ADMIN" {
+                        settingsCard(
+                            title: "Dev tools", systemImage: "hammer.fill",
+                            description: "Debug and QA helpers."
+                        ) {
+                            Toggle("Show onboarding next time", isOn: $showOnboardingNextLaunch)
+                                .toggleStyle(.switch)
+                                .onChange(of: showOnboardingNextLaunch) { _, newValue in
+                                    app.setOnboardingNextLaunchEnabled(newValue)
+                                }
+                        }
+                    }
+
                     settingsCard(
                         title: "Account", systemImage: "person.crop.circle",
                         description: "Log out or request account deletion."
@@ -223,6 +251,7 @@ struct SettingsView: View {
             language = defaults.language
             loggingLevel = defaults.foodLoggingLevel
         }
+        showOnboardingNextLaunch = app.onboardingNextLaunchEnabled()
         previousLoggingLevel = loggingLevel
         hasLoaded = true
     }

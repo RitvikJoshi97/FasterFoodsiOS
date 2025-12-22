@@ -24,6 +24,21 @@ class AppState: ObservableObject {
     @Published var customMetricRecommendations: [ShoppingRecommendation] = []
     @Published var foodLoggingLevel: FoodLoggingLevel = .beginner
     @Published var isOffline: Bool = false
+    @Published var showAssistant: Bool = false
+    @Published var assistantScript: AssistantScript = .onboarding()
+    @Published var assistantTitle: String = "Assistant"
+    @Published var assistantMode: AssistantMode = .assistant
+    private let onboardingChatKey = "hasSeenOnboardingChat"
+    private let onboardingNextLaunchKey = "showOnboardingNextLaunch"
+    private var hasSeenOnboardingChat: Bool {
+        get { UserDefaults.standard.bool(forKey: onboardingChatKey) }
+        set { UserDefaults.standard.set(newValue, forKey: onboardingChatKey) }
+    }
+    private var showOnboardingNextLaunch: Bool {
+        get { UserDefaults.standard.bool(forKey: onboardingNextLaunchKey) }
+        set { UserDefaults.standard.set(newValue, forKey: onboardingNextLaunchKey) }
+    }
+    private var deferOnboardingThisSession = false
     private let credentialStore = CredentialStore()
     private let foodLoggingLevelKey = "foodLoggingLevel"
     private let cacheWindowDays = 14
@@ -662,6 +677,7 @@ class AppState: ObservableObject {
         isAuthenticated = true
         credentialStore.save(email: email, password: password)
         await refreshAll()
+        presentOnboardingIfNeeded()
     }
 
     func loginWithApple(
@@ -695,6 +711,7 @@ class AppState: ObservableObject {
         // Store Apple user identifier for future authentication
         credentialStore.saveAppleCredentials(userIdentifier: userIdentifier, email: email)
         await refreshAll()
+        presentOnboardingIfNeeded()
     }
 
     func loginWithGoogle(
@@ -726,6 +743,7 @@ class AppState: ObservableObject {
         // Store Google user ID for future authentication
         credentialStore.saveGoogleCredentials(userID: userID, email: email)
         await refreshAll()
+        presentOnboardingIfNeeded()
     }
 
     func register(email: String, password: String, firstName: String, lastName: String) async throws
@@ -769,7 +787,44 @@ class AppState: ObservableObject {
         customMetricRecommendations = []
         credentialStore.clear()
         updateFoodLoggingLevel(.beginner)
+        showAssistant = false
+        assistantMode = .assistant
         await cache.clear()
+    }
+
+    func presentOnboardingIfNeeded() {
+        guard isAuthenticated, !deferOnboardingThisSession else { return }
+        let shouldShow =
+            !hasSeenOnboardingChat || (showOnboardingNextLaunch && currentUser?.role == "ADMIN")
+        guard shouldShow else { return }
+        showOnboardingNextLaunch = false
+        assistantMode = .onboarding
+        assistantTitle = "Welcome to FasterFoods"
+        assistantScript = .onboarding()
+        showAssistant = true
+    }
+
+    func presentAssistant(title: String, script: AssistantScript) {
+        assistantMode = .assistant
+        assistantTitle = title
+        assistantScript = script
+        showAssistant = true
+    }
+
+    func markOnboardingComplete() {
+        hasSeenOnboardingChat = true
+    }
+
+    func onboardingNextLaunchEnabled() -> Bool {
+        showOnboardingNextLaunch
+    }
+
+    func setOnboardingNextLaunchEnabled(_ enabled: Bool) {
+        showOnboardingNextLaunch = enabled
+        if enabled {
+            hasSeenOnboardingChat = false
+            deferOnboardingThisSession = true
+        }
     }
 
     func refreshAll() async {
