@@ -53,7 +53,9 @@ final class ChatAssistantViewModel: ObservableObject {
             let step = script.steps[stepCursor]
             stepCursor += 1
             isAdvancing = true
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            if !messages.isEmpty {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
             appendAssistantMessage(step.text)
             isAdvancing = false
 

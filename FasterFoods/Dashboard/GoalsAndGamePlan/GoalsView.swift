@@ -144,13 +144,9 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
         do {
             let goals = try await APIClient.shared.getGoals()
             savedGoals = goals
-            if goals.isEmpty {
-                showAddGoal = true
-            }
             isGoalsExpanded = false
         } catch {
             savedGoals = []
-            showAddGoal = true
         }
     }
 
