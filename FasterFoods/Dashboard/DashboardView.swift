@@ -25,10 +25,10 @@ enum TodaysProgressDestination: Identifiable, Hashable {
 
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @Environment(\.colorScheme) private var colorScheme
     @State private var todaysProgressDestination: TodaysProgressDestination?
     @State private var isHeaderCompact = false
-    private let gamePlanContent = GamePlanLoader.load()
 
     private let workoutGoalMinutes: Double = 45
     private let macroTargets = MacroTargets(calories: 2000, carbs: 240, protein: 120, fat: 70)
@@ -82,9 +82,9 @@ struct DashboardView: View {
                         SuggestedReadsSection(articles: featuredArticles)
                     }
 
-                    GoalsView<AnyView, AnyView>(
+                    GoalsView<AnyView, AnyView, AnyView>(
                         gamePlanView: { onReadMore in
-                            guard let content = gamePlanContent else {
+                            guard let content = app.gamePlanContent else {
                                 return AnyView(EmptyView())
                             }
                             return AnyView(
@@ -92,15 +92,25 @@ struct DashboardView: View {
                                     previewMarkdown: content.previewMarkdown,
                                     onReadMore: onReadMore
                                 )
+                                .padding(.trailing, 12)
                             )
                         },
                         expandedGamePlanView: {
-                            guard let content = gamePlanContent else {
+                            guard let content = app.gamePlanContent else {
                                 return AnyView(EmptyView())
                             }
                             return AnyView(ExpandedGamePlanView(markdown: content.markdown))
                         },
-                        hasGamePlanContent: gamePlanContent != nil
+                        gamePlanPlaceholderView: {
+                            AnyView(
+                                GamePlanPlaceholderView(
+                                    message: "We're preparing your plan."
+                                )
+                                .padding(.trailing, 12)
+                            )
+                        },
+                        hasGamePlanContent: app.gamePlanContent != nil,
+                        showGamePlanPlaceholder: app.gamePlanStatus.isPreparing
                     )
                 }
                 .padding(.horizontal)
@@ -163,6 +173,14 @@ struct DashboardView: View {
             }
         }
         .glassNavigationBarStyle()
+        .task {
+            await app.refreshLatestGamePlan()
+        }
+        .onChange(of: app.gamePlanUpdateNotice) { _, newValue in
+            guard newValue else { return }
+            toastService.show("Game Plan has been updated")
+            app.consumeGamePlanUpdateNotice()
+        }
     }
 }
 

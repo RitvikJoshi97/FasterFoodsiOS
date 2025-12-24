@@ -917,4 +917,31 @@ actor APIClient {
 
         return recommendations
     }
+
+    // MARK: - Onboarding
+
+    func sendOnboardingMessage(
+        message: String,
+        conversationId: String?
+    ) async throws -> OnboardingChatResponse {
+        let requestBody = OnboardingChatRequest(conversationId: conversationId, message: message)
+        let body = try JSONEncoder().encode(requestBody)
+        let (data, http) = try await request(
+            "/agent/onboarding",
+            method: "POST",
+            body: body,
+            contentType: "application/json",
+            authorized: true
+        )
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        return try JSONDecoder().decode(OnboardingChatResponse.self, from: data)
+    }
+
+    // MARK: - Game Plan
+
+    func getLatestGamePlan() async throws -> GamePlan {
+        let (data, http) = try await request("/gameplan/latest", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        return try JSONDecoder().decode(GamePlan.self, from: data)
+    }
 }

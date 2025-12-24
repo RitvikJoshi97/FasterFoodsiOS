@@ -71,6 +71,12 @@ struct RootTabShell: View {
             ChatAssistantView(
                 title: app.assistantTitle,
                 script: app.assistantScript,
+                queue: app.assistantMode == .onboarding
+                    ? OnboardingMessageQueue()
+                    : MockAssistantMessageQueue(),
+                bootstrapMessage: app.assistantMode == .onboarding
+                    ? AssistantScript.onboardingBootstrapMessage
+                    : nil,
                 dismissLabel: app.assistantMode == .onboarding ? "Later" : "Close",
                 onComplete: {
                     if app.assistantMode == .onboarding {

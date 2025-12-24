@@ -1,10 +1,14 @@
 import Foundation
 import SwiftUI
 
-struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: View {
+struct GoalsView<
+    GamePlanContentView: View, ExpandedGamePlanContentView: View, GamePlanPlaceholderView: View
+>: View {
     let gamePlanView: (@escaping () -> Void) -> GamePlanContentView
     let expandedGamePlanView: () -> ExpandedGamePlanContentView
+    let gamePlanPlaceholderView: () -> GamePlanPlaceholderView
     let hasGamePlanContent: Bool
+    let showGamePlanPlaceholder: Bool
 
     @State private var savedGoals: [Goal] = []
     @State private var isLoading = true
@@ -31,6 +35,8 @@ struct GoalsView<GamePlanContentView: View, ExpandedGamePlanContentView: View>: 
                     goalsList
                     if hasGamePlanContent {
                         gamePlanView { showExpandedGamePlan = true }
+                    } else if showGamePlanPlaceholder {
+                        gamePlanPlaceholderView()
                     }
                 }
             }

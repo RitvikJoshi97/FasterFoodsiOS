@@ -34,6 +34,14 @@ struct AssistantScript {
 }
 
 extension AssistantScript {
+    static let onboardingBootstrapMessage = "Hi"
+    static let onboardingCompletionMessage =
+        "Perfect, I think we've got a starting point. We'll start making a game plan for you and we'll let you know when we have it ready. Explore the app a little! Come on in, help yourself!"
+
+    static func empty() -> AssistantScript {
+        AssistantScript(steps: [])
+    }
+
     static func onboarding() -> AssistantScript {
         AssistantScript(
             steps: [
@@ -65,7 +73,7 @@ extension AssistantScript {
                 ),
                 .init(
                     kind: .assistant(
-                        "Awesome, I think we are all set. We will ready a Game Plan for you which will guide you on how FasterFoods will try and help you with recommendations. Welcome to FasterFoods!"
+                        onboardingCompletionMessage
                     )
                 ),
             ]

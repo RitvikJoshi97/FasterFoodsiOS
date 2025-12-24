@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ChatAssistantView: View {
+    @EnvironmentObject private var app: AppState
+
     let title: String
     let script: AssistantScript
     let dismissLabel: String
@@ -16,6 +18,7 @@ struct ChatAssistantView: View {
         title: String,
         script: AssistantScript,
         queue: AssistantMessageQueueing? = MockAssistantMessageQueue(),
+        bootstrapMessage: String? = nil,
         dismissLabel: String = "Close",
         onComplete: @escaping () -> Void,
         onDismiss: @escaping () -> Void
@@ -25,7 +28,13 @@ struct ChatAssistantView: View {
         self.dismissLabel = dismissLabel
         self.onComplete = onComplete
         self.onDismiss = onDismiss
-        _viewModel = StateObject(wrappedValue: ChatAssistantViewModel(script: script, queue: queue))
+        _viewModel = StateObject(
+            wrappedValue: ChatAssistantViewModel(
+                script: script,
+                queue: queue,
+                bootstrapMessage: bootstrapMessage
+            )
+        )
     }
 
     var body: some View {
@@ -78,13 +87,18 @@ struct ChatAssistantView: View {
                 viewModel.start()
                 inputFocused = true
             }
+            .onChange(of: viewModel.isComplete) { _, newValue in
+                guard newValue, app.assistantMode == .onboarding else { return }
+                app.markOnboardingComplete()
+                app.beginGamePlanPolling()
+            }
         }
     }
 
     private var footerControls: some View {
         VStack(spacing: 12) {
             if viewModel.isComplete {
-                Button("Finish") {
+                Button(app.assistantMode == .onboarding ? "Continue" : "Finish") {
                     onComplete()
                 }
                 .buttonStyle(.borderedProminent)

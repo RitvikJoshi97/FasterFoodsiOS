@@ -3,6 +3,23 @@ import Foundation
 import GoogleSignIn
 import SwiftUI
 
+enum GamePlanStatus: Equatable {
+    case idle
+    case loading
+    case preparing
+    case ready
+    case failed(String)
+
+    var isPreparing: Bool {
+        switch self {
+        case .preparing, .loading:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 @MainActor
 class AppState: ObservableObject {
     @Published var isAuthenticated: Bool = false
@@ -22,6 +39,10 @@ class AppState: ObservableObject {
     @Published var workoutRecommendations: [ShoppingRecommendation] = []
     @Published var customMetrics: [CustomMetric] = []
     @Published var customMetricRecommendations: [ShoppingRecommendation] = []
+    @Published var latestGamePlan: GamePlan?
+    @Published var gamePlanContent: GamePlanContent?
+    @Published var gamePlanStatus: GamePlanStatus = .idle
+    @Published var gamePlanUpdateNotice = false
     @Published var foodLoggingLevel: FoodLoggingLevel = .beginner
     @Published var isOffline: Bool = false
     @Published var showAssistant: Bool = false
@@ -41,11 +62,13 @@ class AppState: ObservableObject {
     private var deferOnboardingThisSession = false
     private let credentialStore = CredentialStore()
     private let foodLoggingLevelKey = "foodLoggingLevel"
+    private let cachedGamePlanKey = "cachedGamePlanExternal"
     private let cacheWindowDays = 14
     private let cache = LocalCache.shared
     private let outbox = OfflineOutbox.shared
     private let networkMonitor = NetworkMonitor.shared
     private var isSyncingOutbox = false
+    private var gamePlanPollTask: Task<Void, Never>?
     private static let isoFormatterFractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -76,6 +99,7 @@ class AppState: ObservableObject {
         {
             foodLoggingLevel = level
         }
+        loadCachedGamePlan()
         isOffline = !networkMonitor.isConnected
         networkMonitor.onStatusChange = { [weak self] connected in
             Task { @MainActor in
@@ -785,10 +809,16 @@ class AppState: ObservableObject {
         workoutRecommendations = []
         customMetrics = []
         customMetricRecommendations = []
+        latestGamePlan = nil
+        gamePlanContent = nil
+        gamePlanStatus = .idle
+        gamePlanUpdateNotice = false
+        cachedGamePlanExternal = nil
         credentialStore.clear()
         updateFoodLoggingLevel(.beginner)
         showAssistant = false
         assistantMode = .assistant
+        gamePlanPollTask?.cancel()
         await cache.clear()
     }
 
@@ -800,7 +830,7 @@ class AppState: ObservableObject {
         showOnboardingNextLaunch = false
         assistantMode = .onboarding
         assistantTitle = "Welcome to FasterFoods"
-        assistantScript = .onboarding()
+        assistantScript = .empty()
         showAssistant = true
     }
 
@@ -824,6 +854,103 @@ class AppState: ObservableObject {
         if enabled {
             hasSeenOnboardingChat = false
             deferOnboardingThisSession = true
+        }
+    }
+
+    func consumeGamePlanUpdateNotice() {
+        gamePlanUpdateNotice = false
+    }
+
+    func refreshLatestGamePlan(force: Bool = false) async {
+        if isOffline {
+            if gamePlanContent == nil {
+                gamePlanStatus = .failed("No internet connection.")
+            }
+            return
+        }
+        if gamePlanStatus == .loading && !force { return }
+        gamePlanStatus = .loading
+        do {
+            let plan = try await APIClient.shared.getLatestGamePlan()
+            let trimmedExternal = plan.external.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let cached = cachedGamePlanExternal?.trimmingCharacters(in: .whitespacesAndNewlines),
+                !cached.isEmpty,
+                cached != trimmedExternal
+            {
+                gamePlanUpdateNotice = true
+            }
+            cachedGamePlanExternal = trimmedExternal.isEmpty ? nil : trimmedExternal
+            latestGamePlan = plan
+            gamePlanContent = GamePlanContent.from(markdown: plan.external)
+            gamePlanStatus = .ready
+            markNetworkSuccess()
+        } catch let apiError as APIError where apiError.statusCode == 404 {
+            latestGamePlan = nil
+            gamePlanContent = nil
+            gamePlanStatus = .preparing
+            cachedGamePlanExternal = nil
+        } catch {
+            if shouldPreserveOnError(error) {
+                markNetworkFailureIfNeeded(error)
+                if latestGamePlan == nil {
+                    gamePlanStatus = .failed(
+                        (error as? APIError)?.message ?? "Unable to load game plan."
+                    )
+                } else {
+                    gamePlanStatus = .ready
+                }
+                return
+            }
+            latestGamePlan = nil
+            gamePlanContent = nil
+            gamePlanStatus = .failed(
+                (error as? APIError)?.message ?? "Unable to load game plan."
+            )
+        }
+    }
+
+    func beginGamePlanPolling() {
+        gamePlanPollTask?.cancel()
+        gamePlanPollTask = Task { [weak self] in
+            await self?.pollForLatestGamePlan()
+        }
+    }
+
+    private func pollForLatestGamePlan(
+        maxAttempts: Int = 6,
+        initialDelaySeconds: Double = 2,
+        maxDelaySeconds: Double = 15
+    ) async {
+        var delay = initialDelaySeconds
+        for _ in 0..<maxAttempts {
+            if Task.isCancelled { return }
+            if isOffline { return }
+            await refreshLatestGamePlan(force: true)
+            if gamePlanStatus == .ready {
+                return
+            }
+            let sleepNanos = UInt64(delay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: sleepNanos)
+            delay = min(delay * 2, maxDelaySeconds)
+        }
+    }
+
+    private var cachedGamePlanExternal: String? {
+        get { SharedContainer.userDefaults.string(forKey: cachedGamePlanKey) }
+        set {
+            if let value = newValue, !value.isEmpty {
+                SharedContainer.userDefaults.set(value, forKey: cachedGamePlanKey)
+            } else {
+                SharedContainer.userDefaults.removeObject(forKey: cachedGamePlanKey)
+            }
+        }
+    }
+
+    private func loadCachedGamePlan() {
+        guard let cached = cachedGamePlanExternal, !cached.isEmpty else { return }
+        if let content = GamePlanContent.from(markdown: cached) {
+            gamePlanContent = content
+            gamePlanStatus = .ready
         }
     }
 
@@ -955,6 +1082,7 @@ class AppState: ObservableObject {
             customMetricRecommendations = []
             markNetworkFailureIfNeeded(error)
         }
+        await refreshLatestGamePlan()
         persistCache()
         if hadSuccess {
             markNetworkSuccess()
