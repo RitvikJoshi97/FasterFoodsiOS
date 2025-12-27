@@ -65,7 +65,7 @@ struct DashboardView: View {
                         Label("Today's Progress", systemImage: "chart.bar.doc.horizontal")
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        TodaysProgressCarousel(
+                        TodaysProgressStack(
                             workoutSummary: workoutSummary,
                             foodSummary: foodLogSummary,
                             onWorkoutTap: { todaysProgressDestination = .workouts },
@@ -174,7 +174,11 @@ struct DashboardView: View {
         }
         .glassNavigationBarStyle()
         .task {
+            ensureHighlightedWorkoutSuggestion()
             await app.refreshLatestGamePlan()
+        }
+        .onChange(of: app.workoutRecommendations.map(\.id)) { _, _ in
+            ensureHighlightedWorkoutSuggestion()
         }
         .onChange(of: app.gamePlanUpdateNotice) { _, newValue in
             guard newValue else { return }
@@ -233,27 +237,26 @@ extension DashboardView {
             state = .partiallyCompleted
         }
 
-        let durationText: String
-        if totalMinutes >= 60 {
-            durationText = String(format: "%.1fh", totalMinutes / 60)
-        } else {
-            durationText = "\(Int(totalMinutes))min"
-        }
+        let remainingMinutes = max(workoutGoalMinutes - totalMinutes, 0)
+        let remainingText = formatMinutesText(remainingMinutes, roundUp: true)
+        let doneText = formatMinutesText(totalMinutes, roundUp: false)
 
-        let subtitleText: String
-        switch state {
-        case .completed:
-            subtitleText = "Well done, rest well"
-        case .partiallyCompleted:
-            let remaining = max(workoutGoalMinutes - totalMinutes, 0)
-            subtitleText = "\(Int(ceil(remaining))) minutes more"
-        case .notStarted:
-            subtitleText = "Start your workout"
-        }
+        let workoutRecommendation = app.highlightedWorkoutSuggestion.trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        let workoutRecommendationIcon =
+            workoutRecommendation.isEmpty
+            ? ""
+            : WorkoutSuggestionIconProvider.systemImageName(
+                for: workoutRecommendation,
+                quickPicks: WorkoutQuickPickDefinition.defaultQuickPicks,
+                recommendations: app.workoutRecommendations
+            )
 
         return WorkoutSummary(
-            durationText: durationText,
-            subtitleText: subtitleText,
+            remainingText: remainingText,
+            doneText: doneText,
+            recommendationHighlight: workoutRecommendation,
+            recommendationIconName: workoutRecommendationIcon,
             progress: progress,
             state: state
         )
@@ -264,6 +267,9 @@ extension DashboardView {
         let totalCalories = todayItems.reduce(0.0) { $0 + parseDouble($1.calories) }
         let protein = todayItems.reduce(0.0) { $0 + parseDouble($1.protein) }
         let fat = todayItems.reduce(0.0) { $0 + parseDouble($1.fat) }
+        let calorieGoal = max(macroTargets.calories, 0)
+        let caloriesRemaining = max(calorieGoal - totalCalories, 0)
+        let caloriesProgress = calorieGoal > 0 ? min(totalCalories / calorieGoal, 1) : 0
 
         // Estimate carbs from remaining calories if explicit value is missing.
         let carbCalories = max(totalCalories - (protein * 4 + fat * 9), 0)
@@ -312,11 +318,41 @@ extension DashboardView {
 
         return FoodLogSummary(
             calories: Int(totalCalories.rounded()),
+            caloriesRemaining: Int(caloriesRemaining.rounded()),
+            calorieGoal: Int(calorieGoal.rounded()),
+            progress: caloriesProgress,
             macros: macros,
             recommendation: recommendation,
             mealsCount: todayItems.count,
             todayItems: todayItems
         )
+    }
+
+    fileprivate var workoutSuggestionTitles: [String] {
+        let quickPickTitles = WorkoutQuickPickDefinition.defaultQuickPicks.map(\.label)
+        let recommendationTitles = app.workoutRecommendations.compactMap { recommendation in
+            recommendation.quickPickDefinition?.label ?? recommendation.title
+        }
+        return quickPickTitles + recommendationTitles
+    }
+
+    fileprivate func ensureHighlightedWorkoutSuggestion() {
+        let titles = workoutSuggestionTitles
+        guard !titles.isEmpty else {
+            app.highlightedWorkoutSuggestion = ""
+            return
+        }
+        if !titles.contains(app.highlightedWorkoutSuggestion) {
+            app.highlightedWorkoutSuggestion = titles.randomElement() ?? ""
+        }
+    }
+
+    fileprivate func formatMinutesText(_ minutes: Double, roundUp: Bool) -> String {
+        let adjusted = roundUp ? ceil(minutes) : minutes
+        if adjusted >= 60 {
+            return String(format: "%.1fh", adjusted / 60)
+        }
+        return "\(Int(adjusted))min"
     }
 
     fileprivate func parseDurationMinutes(from text: String) -> Double {
@@ -384,14 +420,19 @@ struct DashboardCard<Content: View>: View {
 }
 
 struct WorkoutSummary {
-    let durationText: String
-    let subtitleText: String
+    let remainingText: String
+    let doneText: String
+    let recommendationHighlight: String
+    let recommendationIconName: String
     let progress: Double
     let state: WorkoutState
 }
 
 struct FoodLogSummary {
     let calories: Int
+    let caloriesRemaining: Int
+    let calorieGoal: Int
+    let progress: Double
     let macros: [MacroRingData]
     let recommendation: String
     let mealsCount: Int
@@ -455,7 +496,7 @@ extension WorkoutState {
     }
 }
 
-struct TodaysProgressCarousel: View {
+struct TodaysProgressStack: View {
     let workoutSummary: WorkoutSummary
     let foodSummary: FoodLogSummary
     let onWorkoutTap: (() -> Void)?
@@ -477,10 +518,12 @@ struct TodaysProgressCarousel: View {
     }
 
     var body: some View {
-        TabView {
+        VStack(spacing: 12) {
             WorkoutCardView(
-                durationText: workoutSummary.durationText,
-                subtitleText: workoutSummary.subtitleText,
+                remainingText: workoutSummary.remainingText,
+                doneText: workoutSummary.doneText,
+                recommendationHighlight: workoutSummary.recommendationHighlight,
+                recommendationIconName: workoutSummary.recommendationIconName,
                 progress: workoutSummary.progress,
                 state: workoutSummary.state,
                 onTap: onWorkoutTap
@@ -491,9 +534,6 @@ struct TodaysProgressCarousel: View {
             )
             SleepCardView(onTap: onSleepTap)
         }
-        .frame(height: 190)
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-        .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
     }
 }
 

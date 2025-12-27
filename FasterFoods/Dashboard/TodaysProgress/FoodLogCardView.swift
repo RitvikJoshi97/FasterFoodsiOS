@@ -20,63 +20,80 @@ struct FoodLogCardView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 4) {
-            // Left column: heading + recommendation, then calories
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Food Log")
-                        .font(.headline)
-                    if !summary.recommendation.isEmpty {
-                        Text("Today's suggestion")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(summary.recommendation)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(4)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Food Log")
+                .font(.title3)
+                .fontWeight(.semibold)
 
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(summary.calories) kcal")
-                        .font(.headline.weight(.bold))
-                    Text("logged today")
+                    Text("Spare calories")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    Text("\(summary.caloriesRemaining) kcal")
+                        .font(.system(size: 36, weight: .bold))
+                    Text(loggedText)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Right column: macros up top, graph below
-            VStack(alignment: .trailing, spacing: 4) {
+                Spacer(minLength: 0)
+
                 HStack(spacing: 12) {
                     ForEach(summary.macros) { macro in
                         MacroRingView(macro: macro)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-
-                FoodLogHistoryGraphsView(mode: .day, items: summary.todayItems)
-                    .frame(width: 170, height: 95, alignment: .top)
-                    .scaleEffect(y: 0.62, anchor: .top)
-                    .clipped()
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            // FoodLogHistoryGraphsView(mode: .day, items: summary.todayItems)
+            //     .frame(height: 95, alignment: .top)
+            //     .scaleEffect(y: 0.62, anchor: .top)
+            //     .clipped()
+
+            if !summary.recommendation.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Text("Today's suggestion")
+                    //     .font(.caption)
+                    //     .foregroundStyle(.secondary)
+                    Text(summary.recommendation)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(4)
+                }
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, minHeight: 190)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.orange.opacity(0.1))
+            GeometryReader { proxy in
+                let fillWidth = proxy.size.width * CGFloat(min(max(summary.progress, 0), 1))
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.orange.opacity(0.2))
+                        .frame(width: fillWidth)
+                }
+            }
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .animation(.easeInOut, value: summary.progress)
         .contentShape(Rectangle())
         .onTapGesture {
             guard let onTap else { return }
             onTap()
         }
+    }
+
+    private var loggedText: String {
+        if summary.calorieGoal > 0 {
+            return "\(summary.calories) / \(summary.calorieGoal) kcal logged"
+        }
+        return "\(summary.calories) kcal logged"
     }
 }
 

@@ -17,7 +17,8 @@ struct SleepCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Sleep")
-                .font(.headline)
+                .font(.title3)
+                .fontWeight(.semibold)
 
             Text("7h sleep yesterday")
                 .font(.system(size: 26, weight: .bold))

@@ -76,7 +76,8 @@ struct WorkoutsView: View {
                                 id: id, action: .dismissed)
                         }
                     },
-                    onAddWorkout: { isPresentingAddWorkout = true }
+                    onAddWorkout: { isPresentingAddWorkout = true },
+                    highlightedSuggestion: $app.highlightedWorkoutSuggestion
                 )
             }
 

@@ -37,6 +37,7 @@ class AppState: ObservableObject {
     @Published var foodLogRecommendations: [ShoppingRecommendation] = []
     @Published var workoutItems: [WorkoutLogItem] = []
     @Published var workoutRecommendations: [ShoppingRecommendation] = []
+    @Published var highlightedWorkoutSuggestion: String = ""
     @Published var customMetrics: [CustomMetric] = []
     @Published var customMetricRecommendations: [ShoppingRecommendation] = []
     @Published var latestGamePlan: GamePlan?
