@@ -77,6 +77,9 @@ struct RootTabShell: View {
                 bootstrapMessage: app.assistantMode == .onboarding
                     ? AssistantScript.onboardingBootstrapMessage
                     : nil,
+                introMessages: app.assistantMode == .onboarding
+                    ? AssistantScript.onboardingIntroMessages
+                    : [],
                 dismissLabel: app.assistantMode == .onboarding ? "Later" : "Close",
                 onComplete: {
                     if app.assistantMode == .onboarding {

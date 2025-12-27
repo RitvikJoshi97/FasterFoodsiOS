@@ -5,6 +5,7 @@ struct ChatAssistantView: View {
 
     let title: String
     let script: AssistantScript
+    let introMessages: [String]
     let dismissLabel: String
     let onComplete: () -> Void
     let onDismiss: () -> Void
@@ -19,12 +20,14 @@ struct ChatAssistantView: View {
         script: AssistantScript,
         queue: AssistantMessageQueueing? = MockAssistantMessageQueue(),
         bootstrapMessage: String? = nil,
+        introMessages: [String] = [],
         dismissLabel: String = "Close",
         onComplete: @escaping () -> Void,
         onDismiss: @escaping () -> Void
     ) {
         self.title = title
         self.script = script
+        self.introMessages = introMessages
         self.dismissLabel = dismissLabel
         self.onComplete = onComplete
         self.onDismiss = onDismiss
@@ -32,7 +35,8 @@ struct ChatAssistantView: View {
             wrappedValue: ChatAssistantViewModel(
                 script: script,
                 queue: queue,
-                bootstrapMessage: bootstrapMessage
+                bootstrapMessage: bootstrapMessage,
+                introMessages: introMessages
             )
         )
     }

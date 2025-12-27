@@ -12,7 +12,7 @@ struct GamePlanView: View {
                 .fontWeight(.semibold)
 
             Group {
-                Text(previewMarkdown)
+                Text(GamePlanMarkdownRenderer.attributed(from: previewMarkdown))
             }
             .font(.footnote)
             .multilineTextAlignment(.leading)
@@ -42,6 +42,16 @@ struct GamePlanView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.green.opacity(0.25), lineWidth: 1)
         )
+    }
+}
+
+enum GamePlanMarkdownRenderer {
+    static func attributed(from markdown: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        )
+        return (try? AttributedString(markdown: markdown, options: options))
+            ?? AttributedString(markdown)
     }
 }
 

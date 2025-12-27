@@ -10,6 +10,7 @@ final class ChatAssistantViewModel: ObservableObject {
     private let script: AssistantScript
     private let queue: AssistantMessageQueueing?
     private let bootstrapMessage: String?
+    private let introMessages: [String]
     private var stepCursor = 0
     private var advanceTask: Task<Void, Never>?
     private var hasNotifiedCompletion = false
@@ -17,11 +18,13 @@ final class ChatAssistantViewModel: ObservableObject {
     init(
         script: AssistantScript,
         queue: AssistantMessageQueueing? = MockAssistantMessageQueue(),
-        bootstrapMessage: String? = nil
+        bootstrapMessage: String? = nil,
+        introMessages: [String] = []
     ) {
         self.script = script
         self.queue = queue
         self.bootstrapMessage = bootstrapMessage
+        self.introMessages = introMessages
     }
 
     private var usesScript: Bool {
@@ -37,7 +40,14 @@ final class ChatAssistantViewModel: ObservableObject {
         isComplete = false
         hasNotifiedCompletion = false
         if let bootstrapMessage, !usesScript {
-            advanceTask = Task { await startBootstrap(message: bootstrapMessage) }
+            if introMessages.isEmpty {
+                advanceTask = Task { await startBootstrap(message: bootstrapMessage) }
+            } else {
+                advanceTask = Task {
+                    await playIntroMessages()
+                    await startBootstrap(message: bootstrapMessage)
+                }
+            }
         } else {
             advanceTask = Task { await advanceScript() }
         }
@@ -90,6 +100,17 @@ final class ChatAssistantViewModel: ObservableObject {
             }
         }
         markComplete()
+    }
+
+    private func playIntroMessages() async {
+        for message in introMessages {
+            isAdvancing = true
+            if !messages.isEmpty {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+            appendAssistantMessage(message)
+            isAdvancing = false
+        }
     }
 
     private func startBootstrap(message: String) async {

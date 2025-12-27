@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct ExpandedGamePlanView: View {
@@ -7,7 +8,7 @@ struct ExpandedGamePlanView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(markdown)
+                Text(GamePlanMarkdownRenderer.attributed(from: markdown))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .lineSpacing(8)
                     .textSelection(.enabled)

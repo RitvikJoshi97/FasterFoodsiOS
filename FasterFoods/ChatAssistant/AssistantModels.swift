@@ -34,6 +34,11 @@ struct AssistantScript {
 }
 
 extension AssistantScript {
+    static let onboardingIntroMessages = [
+        "Welcome to FasterFoods!",
+        "Our mission is to help people eat better and live healthier lives by providing an intuitive platform to track what matters most.",
+        "Let's start with a little setup, help us understand your health and fitness.",
+    ]
     static let onboardingBootstrapMessage = "Hi"
     static let onboardingCompletionMessage =
         "Perfect, I think we've got a starting point. We'll start making a game plan for you and we'll let you know when we have it ready. Explore the app a little! Come on in, help yourself!"
@@ -47,12 +52,17 @@ extension AssistantScript {
             steps: [
                 .init(
                     kind: .assistant(
-                        "Hey there! Welcome to FasterFoods! Let me explain how FasterFoods works.\n\nWe help you track food, habits, and daily progress so we can recommend smarter meals, grocery lists, and simple health wins."
+                        onboardingIntroMessages[0]
                     )
                 ),
                 .init(
                     kind: .assistant(
-                        "I have a few questions for you related to your general health if you would not mind."
+                        onboardingIntroMessages[1]
+                    )
+                ),
+                .init(
+                    kind: .assistant(
+                        onboardingIntroMessages[2]
                     )
                 ),
                 .init(kind: .prompt("What kind of goals do you have in mind?")),

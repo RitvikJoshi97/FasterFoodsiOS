@@ -824,8 +824,19 @@ class AppState: ObservableObject {
 
     func presentOnboardingIfNeeded() {
         guard isAuthenticated, !deferOnboardingThisSession else { return }
-        let shouldShow =
-            !hasSeenOnboardingChat || (showOnboardingNextLaunch && currentUser?.role == "ADMIN")
+        if case .idle = gamePlanStatus { return }
+        if case .loading = gamePlanStatus { return }
+        let hasStoredGamePlan: Bool = {
+            if let cached = cachedGamePlanExternal?.trimmingCharacters(in: .whitespacesAndNewlines),
+                !cached.isEmpty
+            {
+                return true
+            }
+            return gamePlanContent != nil || latestGamePlan != nil
+        }()
+        let isDevOverride = showOnboardingNextLaunch && currentUser?.role == "ADMIN"
+        guard !hasStoredGamePlan || isDevOverride else { return }
+        let shouldShow = !hasSeenOnboardingChat || isDevOverride
         guard shouldShow else { return }
         showOnboardingNextLaunch = false
         assistantMode = .onboarding
