@@ -32,6 +32,7 @@ struct WorkoutHistoryList: View {
             ForEach(sortedItems) { item in
                 WorkoutHistoryRow(
                     item: item,
+                    iconSystemName: workoutSystemImageName(for: item),
                     categoryLabel: label(for: item),
                     dateText: formattedDate(for: item),
                     parameterSummary: parameterSummary(for: item)
@@ -96,10 +97,133 @@ struct WorkoutHistoryList: View {
         return isoFormatterWithFractional.date(from: dateString)
             ?? isoFormatter.date(from: dateString)
     }
+
+    private func workoutSystemImageName(for item: WorkoutLogItem) -> String {
+        switch item.activity {
+        case WorkoutActivityDefinition.Constants.cardio:
+            switch item.category {
+            case "outdoor-run", "trail-run", "track-run":
+                return "figure.run"
+            case "indoor-run":
+                return "treadmill"
+            case "walking":
+                return "figure.walk"
+            case "hiking":
+                return "figure.hiking"
+            default:
+                return "figure.run"
+            }
+        case WorkoutActivityDefinition.Constants.cycling:
+            return "bicycle"
+        case WorkoutActivityDefinition.Constants.gymStrength:
+            switch item.category {
+            case "flexibility":
+                return "figure.flexibility"
+            case "hiit":
+                return "figure.highintensity.intervaltraining"
+            default:
+                return "dumbbell"
+            }
+        case WorkoutActivityDefinition.Constants.mindBody:
+            switch item.category {
+            case "yoga":
+                return "figure.yoga"
+            case "tai-chi", "mindful-cooldown":
+                return "figure.mind.and.body"
+            case "pilates":
+                return "figure.pilates"
+            default:
+                return "figure.mind.and.body"
+            }
+        case WorkoutActivityDefinition.Constants.waterSports:
+            switch item.category {
+            case "pool-swim", "open-water-swim":
+                return "figure.pool.swim"
+            case "rowing":
+                return "figure.rowing"
+            case "surfing":
+                return "figure.surfing"
+            case "paddleboarding":
+                return "figure.stand.paddle"
+            case "kayaking":
+                return "figure.kayaking"
+            default:
+                return "drop"
+            }
+        case WorkoutActivityDefinition.Constants.winterSports:
+            switch item.category {
+            case "snowboarding":
+                return "figure.snowboarding"
+            case "skiing", "cross-country-skiing":
+                return "figure.skiing.downhill"
+            default:
+                return "snowflake"
+            }
+        case WorkoutActivityDefinition.Constants.combatMixed:
+            switch item.category {
+            case "boxing", "kickboxing":
+                return "figure.boxing"
+            case "martial-arts":
+                return "figure.martial.arts"
+            case "dance-cardio":
+                return "figure.dance"
+            default:
+                return "figure.martial.arts"
+            }
+        case WorkoutActivityDefinition.Constants.teamField:
+            switch item.category {
+            case "football":
+                return "figure.american.football"
+            case "basketball":
+                return "figure.basketball"
+            case "volleyball":
+                return "figure.volleyball"
+            case "hockey":
+                return "figure.hockey"
+            case "cricket":
+                return "figure.cricket"
+            case "rugby":
+                return "figure.rugby"
+            default:
+                return "figure.team.sports"
+            }
+        case WorkoutActivityDefinition.Constants.racketPrecision:
+            switch item.category {
+            case "tennis":
+                return "figure.tennis"
+            case "badminton":
+                return "figure.badminton"
+            case "table-tennis":
+                return "figure.table.tennis"
+            case "golf":
+                return "figure.golf"
+            case "pickleball":
+                return "figure.pickleball"
+            default:
+                return "figure.racket.sports"
+            }
+        case WorkoutActivityDefinition.Constants.others:
+            switch item.category {
+            case "climbing":
+                return "figure.climbing"
+            case "dance":
+                return "figure.dance"
+            case "fitness-gaming":
+                return "gamecontroller"
+            case WorkoutActivityDefinition.Constants.healthKitImport:
+                return "heart"
+            default:
+                return "figure.walk"
+            }
+        default:
+            return "figure.walk"
+        }
+    }
 }
 
 private struct WorkoutHistoryRow: View {
     let item: WorkoutLogItem
+    let iconSystemName: String
     let categoryLabel: String
     let dateText: String
     let parameterSummary: String
@@ -107,6 +231,12 @@ private struct WorkoutHistoryRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            Image(systemName: iconSystemName)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 36, height: 36)
+                .padding(6)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 6) {
                 Text(categoryLabel)
                     .font(.headline)
