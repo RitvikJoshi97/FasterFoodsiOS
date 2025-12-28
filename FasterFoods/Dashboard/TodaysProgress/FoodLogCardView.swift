@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct FoodLogCardView: View {
     let summary: FoodLogSummary
@@ -70,12 +71,25 @@ struct FoodLogCardView: View {
         .background(
             GeometryReader { proxy in
                 let fillWidth = proxy.size.width * CGFloat(min(max(summary.progress, 0), 1))
+                let totalHeight = proxy.size.height
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.orange.opacity(0.2))
-                        .frame(width: fillWidth)
+                    VStack(spacing: 0) {
+                        ForEach(Array(macroFillSegments.enumerated()), id: \.element.id) {
+                            index, segment in
+                            let corners = segmentCorners(
+                                index: index,
+                                count: macroFillSegments.count
+                            )
+                            Rectangle()
+                                .fill(segment.color)
+                                .frame(height: totalHeight * CGFloat(segment.ratio))
+                                .clipShape(RoundedCorners(radius: 16, corners: corners))
+                        }
+                    }
+                    .frame(width: fillWidth, height: totalHeight, alignment: .top)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         )
@@ -94,6 +108,52 @@ struct FoodLogCardView: View {
             return "\(summary.calories) / \(summary.calorieGoal) kcal logged"
         }
         return "\(summary.calories) kcal logged"
+    }
+
+    private func segmentCorners(index: Int, count: Int) -> UIRectCorner {
+        if count == 1 {
+            return [.topRight, .bottomRight]
+        }
+        if index == 0 {
+            return [.topRight]
+        }
+        if index == count - 1 {
+            return [.bottomRight]
+        }
+        return []
+    }
+
+    private var macroFillSegments: [MacroFillSegment] {
+        let total = summary.macros.reduce(0.0) { $0 + $1.consumed }
+        guard total > 0 else {
+            return [MacroFillSegment(color: Color.orange.opacity(0.2), ratio: 1)]
+        }
+        return summary.macros.map { macro in
+            MacroFillSegment(
+                color: macro.color.opacity(0.25),
+                ratio: macro.consumed / total
+            )
+        }
+    }
+}
+
+private struct MacroFillSegment: Identifiable {
+    let id = UUID()
+    let color: Color
+    let ratio: Double
+}
+
+private struct RoundedCorners: Shape {
+    let radius: CGFloat
+    let corners: UIRectCorner
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
     }
 }
 

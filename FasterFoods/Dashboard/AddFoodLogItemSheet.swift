@@ -9,11 +9,25 @@ struct AddFoodLogItemSheet: View {
     @State private var isSubmitting = false
     @State private var alertMessage: String?
     @FocusState private var isItemNameFocused: Bool
+    @State private var ingredientEntries: [IngredientEntry] = [IngredientEntry()]
+    @State private var isScannerPresented = false
+    @State private var scannerTargetIndex: Int?
 
     private let mealTimeOptions = FoodLogViewModel.MealTime.allCases
     private let portionOptions = FoodLogViewModel.PortionSize.allCases
     private let moodOptions = FoodLogViewModel.Mood.allCases
     private let categoryOptions = FoodLogViewModel.MealCategory.allCases
+    private let commonUnits = [
+        "pieces", "lbs", "kg", "oz", "g", "pints", "liters", "cups", "tbsp", "tsp",
+        "loaves", "containers", "bottles", "cans", "bags", "boxes",
+    ]
+
+    private struct IngredientEntry: Identifiable {
+        let id = UUID()
+        var name = ""
+        var quantity = ""
+        var unit = ""
+    }
 
     private var alertBinding: Binding<Bool> {
         Binding(
@@ -26,9 +40,21 @@ struct AddFoodLogItemSheet: View {
         NavigationStack {
             Form {
                 Section("Meal Details") {
-                    TextField("What did you eat?", text: $viewModel.itemName)
-                        .textInputAutocapitalization(.sentences)
-                        .focused($isItemNameFocused)
+                    HStack(spacing: 8) {
+                        TextField("What did you eat?", text: $viewModel.itemName)
+                            .textInputAutocapitalization(.sentences)
+                            .focused($isItemNameFocused)
+
+                        Button {
+                            scannerTargetIndex = nil
+                            isScannerPresented = true
+                        } label: {
+                            Image(systemName: "barcode.viewfinder")
+                                .imageScale(.medium)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Scan food")
+                    }
 
                     HStack(spacing: 12) {
                         Picker("", selection: $viewModel.mealTime) {
@@ -129,6 +155,62 @@ struct AddFoodLogItemSheet: View {
                     }
                 }
 
+                Section("Ingredients") {
+                    ForEach(ingredientEntries.indices, id: \.self) { index in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                TextField(
+                                    "What did your meal contain?",
+                                    text: $ingredientEntries[index].name
+                                )
+                                .onChange(of: ingredientEntries[index].name) { _, newValue in
+                                    let trimmed = newValue.trimmingCharacters(
+                                        in: .whitespacesAndNewlines)
+                                    let isLast = index == ingredientEntries.count - 1
+                                    if isLast && !trimmed.isEmpty {
+                                        ingredientEntries.append(IngredientEntry())
+                                    }
+                                }
+
+                                Button {
+                                    scannerTargetIndex = index
+                                    isScannerPresented = true
+                                } label: {
+                                    Image(systemName: "barcode.viewfinder")
+                                        .imageScale(.medium)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Scan ingredient")
+                            }
+
+                            if !ingredientEntries[index].name
+                                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            {
+                                VStack(spacing: 4) {
+                                    HStack {
+                                        TextField(
+                                            "Quantity",
+                                            text: $ingredientEntries[index].quantity
+                                        )
+                                        .keyboardType(.numbersAndPunctuation)
+                                        Picker(
+                                            "Unit",
+                                            selection: unitSelection(for: index)
+                                        ) {
+                                            ForEach(commonUnits, id: \.self) { option in
+                                                Text(option).tag(option)
+                                            }
+                                        }
+                                        .pickerStyle(.menu)
+                                    }
+                                    Divider()
+                                }
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                    }
+                }
+
                 Section {
                     Button {
                         HapticSoundPlayer.shared.playPrimaryTap()
@@ -152,6 +234,13 @@ struct AddFoodLogItemSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        HapticSoundPlayer.shared.playPrimaryTap()
+                        logMeal()
+                    }
+                    .disabled(!viewModel.canLogEntry || isSubmitting)
+                }
             }
             .onAppear {
                 viewModel.adjustMealTime(basedOn: mealDate)
@@ -167,6 +256,20 @@ struct AddFoodLogItemSheet: View {
             } message: {
                 Text(alertMessage ?? "Please try again later.")
             }
+            .sheet(
+                isPresented: $isScannerPresented,
+                onDismiss: {
+                    scannerTargetIndex = nil
+                }
+            ) {
+                ScannerView { scannedValue in
+                    if let index = scannerTargetIndex, ingredientEntries.indices.contains(index) {
+                        ingredientEntries[index].name = scannedValue
+                    } else {
+                        viewModel.itemName = scannedValue
+                    }
+                }
+            }
         }
     }
 
@@ -175,6 +278,17 @@ struct AddFoodLogItemSheet: View {
         case .morning: return 8
         case .afternoon: return 13
         case .evening: return 19
+        }
+    }
+
+    private func unitSelection(for index: Int) -> Binding<String> {
+        Binding {
+            let trimmed = ingredientEntries[index]
+                .unit
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? (commonUnits.first ?? "") : trimmed
+        } set: { newValue in
+            ingredientEntries[index].unit = newValue
         }
     }
 
