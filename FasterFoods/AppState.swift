@@ -52,6 +52,7 @@ class AppState: ObservableObject {
     @Published var assistantMode: AssistantMode = .assistant
     private let onboardingChatKey = "hasSeenOnboardingChat"
     private let onboardingNextLaunchKey = "showOnboardingNextLaunch"
+    private let localSettingsKey = "localUserSettings"
     private var hasSeenOnboardingChat: Bool {
         get { UserDefaults.standard.bool(forKey: onboardingChatKey) }
         set { UserDefaults.standard.set(newValue, forKey: onboardingChatKey) }
@@ -99,6 +100,9 @@ class AppState: ObservableObject {
             let level = FoodLoggingLevel(rawValue: savedLevel)
         {
             foodLoggingLevel = level
+        } else if let localSettings = loadLocalSettings() {
+            settings = localSettings
+            updateFoodLoggingLevel(localSettings.foodLoggingLevel)
         }
         loadCachedGamePlan()
         isOffline = !networkMonitor.isConnected
@@ -113,9 +117,20 @@ class AppState: ObservableObject {
         Task { await bootstrap() }
     }
 
+    private func loadLocalSettings() -> UserSettings? {
+        guard let data = UserDefaults.standard.data(forKey: localSettingsKey) else { return nil }
+        return try? JSONDecoder().decode(UserSettings.self, from: data)
+    }
+
     private func applySettings(_ incoming: UserSettings) {
         settings = incoming
-        updateFoodLoggingLevel(incoming.foodLoggingLevel)
+        if let localSettings = loadLocalSettings(),
+            localSettings.foodLoggingLevel != incoming.foodLoggingLevel
+        {
+            updateFoodLoggingLevel(localSettings.foodLoggingLevel)
+        } else {
+            updateFoodLoggingLevel(incoming.foodLoggingLevel)
+        }
     }
 
     private func shouldPreserveOnError(_ error: Error) -> Bool {
@@ -181,7 +196,13 @@ class AppState: ObservableObject {
         guard let snapshot = await cache.loadSnapshot() else { return }
         currentUser = snapshot.user ?? currentUser
         if let cachedSettings = snapshot.settings {
-            applySettings(cachedSettings)
+            settings = cachedSettings
+            updateFoodLoggingLevel(cachedSettings.foodLoggingLevel)
+        }
+        if let localSettings = loadLocalSettings(),
+            localSettings.foodLoggingLevel != foodLoggingLevel
+        {
+            updateFoodLoggingLevel(localSettings.foodLoggingLevel)
         }
         pantryItems = snapshot.pantryItems
         shoppingLists = snapshot.shoppingLists

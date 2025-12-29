@@ -251,6 +251,7 @@ struct SettingsView: View {
             language = defaults.language
             loggingLevel = defaults.foodLoggingLevel
         }
+        app.updateFoodLoggingLevel(loggingLevel)
         showOnboardingNextLaunch = app.onboardingNextLaunchEnabled()
         previousLoggingLevel = loggingLevel
         hasLoaded = true

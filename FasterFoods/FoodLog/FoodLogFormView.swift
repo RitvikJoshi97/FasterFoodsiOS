@@ -142,6 +142,8 @@ struct FoodLogFormView: View {
         VStack(spacing: 10) {
             TextField("Calories (kcal)", text: $viewModel.calories)
                 .keyboardType(.numberPad)
+            TextField("Carbohydrates (g)", text: $viewModel.carbohydrates)
+                .keyboardType(.decimalPad)
             TextField("Protein (g)", text: $viewModel.protein)
                 .keyboardType(.decimalPad)
             TextField("Fat (g)", text: $viewModel.fat)

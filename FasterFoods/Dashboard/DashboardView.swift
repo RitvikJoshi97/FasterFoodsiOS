@@ -267,17 +267,24 @@ extension DashboardView {
         let totalCalories = todayItems.reduce(0.0) { $0 + parseDouble($1.calories) }
         let protein = todayItems.reduce(0.0) { $0 + parseDouble($1.protein) }
         let fat = todayItems.reduce(0.0) { $0 + parseDouble($1.fat) }
+        let carbohydrates = todayItems.reduce(0.0) { total, item in
+            let explicitCarbs = parseDouble(item.carbohydrates)
+            if explicitCarbs > 0 {
+                return total + explicitCarbs
+            }
+            let itemCalories = parseDouble(item.calories)
+            let itemProtein = parseDouble(item.protein)
+            let itemFat = parseDouble(item.fat)
+            let carbCalories = max(itemCalories - (itemProtein * 4 + itemFat * 9), 0)
+            return total + (carbCalories / 4)
+        }
         let calorieGoal = max(macroTargets.calories, 0)
         let caloriesRemaining = max(calorieGoal - totalCalories, 0)
         let caloriesProgress = calorieGoal > 0 ? min(totalCalories / calorieGoal, 1) : 0
 
-        // Estimate carbs from remaining calories if explicit value is missing.
-        let carbCalories = max(totalCalories - (protein * 4 + fat * 9), 0)
-        let carbs = carbCalories / 4
-
         let macros: [MacroRingData] = [
             MacroRingData(
-                label: "Carbs", consumed: carbs, target: macroTargets.carbs, color: .orange),
+                label: "Carbs", consumed: carbohydrates, target: macroTargets.carbs, color: .orange),
             MacroRingData(
                 label: "Protein", consumed: protein, target: macroTargets.protein, color: .purple),
             MacroRingData(label: "Fat", consumed: fat, target: macroTargets.fat, color: .pink),

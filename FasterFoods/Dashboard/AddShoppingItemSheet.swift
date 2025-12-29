@@ -13,6 +13,7 @@ struct AddShoppingItemSheet: View {
     @State private var isAddingItem: Bool = false
     @State private var showNewListField: Bool = false
     @State private var alertMessage: String?
+    @State private var isScannerPresented = false
     @FocusState private var focusedField: Field?
 
     private let commonUnits = [
@@ -57,8 +58,19 @@ struct AddShoppingItemSheet: View {
         NavigationStack {
             Form {
                 Section("Item Details") {
-                    TextField("Item name", text: $newItemName)
-                        .focused($focusedField, equals: .itemName)
+                    HStack(spacing: 8) {
+                        TextField("Item name", text: $newItemName)
+                            .focused($focusedField, equals: .itemName)
+
+                        Button {
+                            isScannerPresented = true
+                        } label: {
+                            Image(systemName: "barcode.viewfinder")
+                                .imageScale(.medium)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Scan item")
+                    }
 
                     HStack {
                         TextField("Quantity", text: $newItemQuantity)
@@ -145,6 +157,11 @@ struct AddShoppingItemSheet: View {
             } message: {
                 Text(alertMessage ?? "Please try again later.")
             }
+            .sheet(isPresented: $isScannerPresented) {
+                ScannerView { scannedProduct in
+                    applyScan(scannedProduct)
+                }
+            }
         }
     }
 
@@ -191,5 +208,39 @@ struct AddShoppingItemSheet: View {
             alertMessage = error.localizedDescription
             toastService.show("Could not add shopping item.", style: .error)
         }
+    }
+
+    private func applyScan(_ product: ScannedProductInfo) {
+        newItemName = product.name
+        if let quantity = preferredQuantity(for: product) {
+            newItemQuantity = formatQuantity(quantity)
+        }
+        if let unit = preferredUnit(for: product) {
+            newItemUnit = unit
+        }
+    }
+
+    private func preferredQuantity(for product: ScannedProductInfo) -> Double? {
+        if let quantity = product.productQuantity, quantity > 0 {
+            return quantity
+        }
+        if let quantity = product.servingQuantity, quantity > 0 {
+            return quantity
+        }
+        return nil
+    }
+
+    private func preferredUnit(for product: ScannedProductInfo) -> String? {
+        let unit = product.productQuantityUnit ?? product.servingQuantityUnit
+        let trimmed = unit?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+
+    private func formatQuantity(_ value: Double) -> String {
+        let rounded = value.rounded()
+        if abs(value - rounded) < 0.0001 {
+            return String(Int(rounded))
+        }
+        return String(format: "%.2f", value)
     }
 }

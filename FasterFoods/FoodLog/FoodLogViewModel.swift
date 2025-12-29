@@ -58,6 +58,7 @@ final class FoodLogViewModel: ObservableObject {
     @Published var portionSize: PortionSize = .medium
     @Published var mood: Mood = .okay
     @Published var calories: String = ""
+    @Published var carbohydrates: String = ""
     @Published var protein: String = ""
     @Published var fat: String = ""
     @Published var mealCategory: MealCategory = .highProtein
@@ -99,6 +100,7 @@ final class FoodLogViewModel: ObservableObject {
     func reset(for level: FoodLoggingLevel) {
         itemName = ""
         calories = ""
+        carbohydrates = ""
         protein = ""
         fat = ""
         digestionFeedback = ""
@@ -132,6 +134,7 @@ final class FoodLogViewModel: ObservableObject {
         mealCategory = .highProtein
 
         if level == .beginner {
+            carbohydrates = ""
             protein = ""
             fat = ""
         }
@@ -155,6 +158,7 @@ final class FoodLogViewModel: ObservableObject {
             name: itemName,
             meal: mealName(for: mealTime),
             calories: calories.isEmpty ? nil : calories,
+            carbohydrates: (level != .beginner && !carbohydrates.isEmpty) ? carbohydrates : nil,
             datetime: datetime,
             loggingLevel: level,
             portionSize: portionSize.rawValue,
@@ -163,32 +167,44 @@ final class FoodLogViewModel: ObservableObject {
             protein: (level != .beginner && !protein.isEmpty) ? protein : nil,
             fat: (level != .beginner && !fat.isEmpty) ? fat : nil,
             mealCategory: (level != .beginner) ? mealCategory.rawValue : nil,
-            digestionFeedback: level == .advanced && !digestionFeedback.isEmpty ? digestionFeedback : nil,
+            digestionFeedback: level == .advanced && !digestionFeedback.isEmpty
+                ? digestionFeedback : nil,
             hydration: level == .advanced && !hydration.isEmpty ? hydration : nil,
             hungerFullness: level == .advanced ? Int(hungerFullness) : nil,
-            hungerSatisfaction: level == .advanced && !hungerSatisfaction.isEmpty ? hungerSatisfaction : nil,
-            physicalEmptiness: level == .advanced && !physicalEmptiness.isEmpty ? physicalEmptiness : nil,
+            hungerSatisfaction: level == .advanced && !hungerSatisfaction.isEmpty
+                ? hungerSatisfaction : nil,
+            physicalEmptiness: level == .advanced && !physicalEmptiness.isEmpty
+                ? physicalEmptiness : nil,
             couldEatMore: level == .advanced ? couldEatMore : nil,
-            stomachSensations: level == .advanced && !stomachSensations.isEmpty ? stomachSensations : nil,
-            chestThroatSensations: level == .advanced && !chestThroatSensations.isEmpty ? chestThroatSensations : nil,
+            stomachSensations: level == .advanced && !stomachSensations.isEmpty
+                ? stomachSensations : nil,
+            chestThroatSensations: level == .advanced && !chestThroatSensations.isEmpty
+                ? chestThroatSensations : nil,
             headSensations: level == .advanced && !headSensations.isEmpty ? headSensations : nil,
-            overallBodySensations: level == .advanced && !overallBodySensations.isEmpty ? overallBodySensations : nil,
+            overallBodySensations: level == .advanced && !overallBodySensations.isEmpty
+                ? overallBodySensations : nil,
             muscleTone: level == .advanced && !muscleTone.isEmpty ? muscleTone : nil,
             energyLevel: level == .advanced ? energyLevel : nil,
-            breathingChanges: level == .advanced && !breathingChanges.isEmpty ? breathingChanges : nil,
+            breathingChanges: level == .advanced && !breathingChanges.isEmpty
+                ? breathingChanges : nil,
             postureDesire: level == .advanced && !postureDesire.isEmpty ? postureDesire : nil,
-            emotionsAfterEating: level == .advanced && !emotionsAfterEating.isEmpty ? emotionsAfterEating : nil,
+            emotionsAfterEating: level == .advanced && !emotionsAfterEating.isEmpty
+                ? emotionsAfterEating : nil,
             emotionLocation: level == .advanced && !emotionLocation.isEmpty ? emotionLocation : nil,
-            memoriesThoughts: level == .advanced && !memoriesThoughts.isEmpty ? memoriesThoughts : nil,
+            memoriesThoughts: level == .advanced && !memoriesThoughts.isEmpty
+                ? memoriesThoughts : nil,
             tasteEnjoyment: level == .advanced ? tasteEnjoyment : nil,
             lingeringTaste: level == .advanced && !lingeringTaste.isEmpty ? lingeringTaste : nil,
             bodySatisfaction: level == .advanced ? bodySatisfaction : nil,
-            digestiveSensations: level == .advanced && !digestiveSensations.isEmpty ? digestiveSensations : nil,
+            digestiveSensations: level == .advanced && !digestiveSensations.isEmpty
+                ? digestiveSensations : nil,
             digestionComfort: level == .advanced ? digestionComfort : nil,
             energyChanges: level == .advanced && !energyChanges.isEmpty ? energyChanges : nil,
             bodySignals: level == .advanced && !bodySignals.isEmpty ? bodySignals : nil,
-            mindBodyConnection: level == .advanced && !mindBodyConnection.isEmpty ? mindBodyConnection : nil,
-            relationshipWithFood: level == .advanced && !relationshipWithFood.isEmpty ? relationshipWithFood : nil
+            mindBodyConnection: level == .advanced && !mindBodyConnection.isEmpty
+                ? mindBodyConnection : nil,
+            relationshipWithFood: level == .advanced && !relationshipWithFood.isEmpty
+                ? relationshipWithFood : nil
         )
     }
 

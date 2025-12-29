@@ -364,6 +364,7 @@ struct FoodLogItem: Codable, Identifiable {
     var name: String
     var meal: String
     var calories: String?
+    var carbohydrates: String?
     var datetime: String
     var loggingLevel: FoodLoggingLevel
     var portionSize: String?
@@ -404,6 +405,7 @@ struct FoodLogItem: Codable, Identifiable {
         case name
         case meal
         case calories
+        case carbohydrates
         case datetime
         case loggingLevel
         case portionSize
@@ -446,6 +448,7 @@ struct FoodLogItem: Codable, Identifiable {
         name = container.decodeFlexibleOptionalString(forKey: .name) ?? "Meal"
         meal = container.decodeFlexibleOptionalString(forKey: .meal) ?? "meal"
         calories = container.decodeFlexibleOptionalString(forKey: .calories)
+        carbohydrates = container.decodeFlexibleOptionalString(forKey: .carbohydrates)
         datetime =
             container.decodeFlexibleOptionalString(forKey: .datetime)
             ?? ISO8601DateFormatter().string(from: Date())
@@ -493,6 +496,7 @@ struct FoodLogItem: Codable, Identifiable {
         try container.encode(name, forKey: .name)
         try container.encode(meal, forKey: .meal)
         try container.encodeIfPresent(calories, forKey: .calories)
+        try container.encodeIfPresent(carbohydrates, forKey: .carbohydrates)
         try container.encode(datetime, forKey: .datetime)
         try container.encode(loggingLevel, forKey: .loggingLevel)
         try container.encodeIfPresent(portionSize, forKey: .portionSize)
@@ -534,6 +538,7 @@ struct FoodLogCreateRequest: Codable {
     var name: String
     var meal: String
     var calories: String?
+    var carbohydrates: String?
     var datetime: String
     var loggingLevel: FoodLoggingLevel
     var portionSize: String?
@@ -593,6 +598,7 @@ extension FoodLogItem {
         self.name = request.name
         self.meal = request.meal
         self.calories = request.calories
+        self.carbohydrates = request.carbohydrates
         self.datetime = request.datetime
         self.loggingLevel = request.loggingLevel
         self.portionSize = request.portionSize
