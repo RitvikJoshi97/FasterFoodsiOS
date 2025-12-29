@@ -1890,6 +1890,34 @@ class AppState: ObservableObject {
         }
     }
 
+    func addFoodLogItemIngredients(
+        itemId: String,
+        ingredients: [FoodLogIngredientCreateRequest]
+    ) async throws {
+        guard !ingredients.isEmpty else { return }
+        if isTempId(itemId) || isOffline { return }
+        do {
+            try await APIClient.shared.addFoodLogItemIngredients(
+                itemId: itemId, ingredients: ingredients)
+            markNetworkSuccess()
+        } catch {
+            markNetworkFailureIfNeeded(error)
+            throw error
+        }
+    }
+
+    func getFoodLogItemIngredients(itemId: String) async throws -> [FoodLogIngredient] {
+        if isTempId(itemId) || isOffline { return [] }
+        do {
+            let ingredients = try await APIClient.shared.getFoodLogItemIngredients(itemId: itemId)
+            markNetworkSuccess()
+            return ingredients
+        } catch {
+            markNetworkFailureIfNeeded(error)
+            throw error
+        }
+    }
+
     func deleteFoodLogItem(id: String) async throws {
         if isTempId(id) {
             foodLogItems.removeAll { $0.id == id }

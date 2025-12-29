@@ -503,14 +503,47 @@ struct AddFoodLogItemSheet: View {
         return Double(String(filtered)) ?? 0
     }
 
+    private func ingredientRequests() -> [FoodLogIngredientCreateRequest] {
+        ingredientEntries.compactMap { entry in
+            let name = entry.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return nil }
+            let quantity = entry.quantity.trimmingCharacters(in: .whitespacesAndNewlines)
+            let unit = entry.unit.trimmingCharacters(in: .whitespacesAndNewlines)
+            let barcodeString =
+                entry.scanInfo?.barcode.trimmingCharacters(in: .whitespacesAndNewlines)
+            let barcode = barcodeString.flatMap { Int64($0) }
+            return FoodLogIngredientCreateRequest(
+                barcode: barcode,
+                itemName: name,
+                quantity: quantity.isEmpty ? nil : quantity,
+                unit: unit.isEmpty ? nil : unit
+            )
+        }
+    }
+
     private func logMeal() {
         guard viewModel.canLogEntry else { return }
         isSubmitting = true
         let request = viewModel.request(for: app.foodLoggingLevel, date: mealDate)
         Task { @MainActor in
             do {
-                _ = try await app.addFoodLogItem(request)
-                toastService.show("Food log saved")
+                let item = try await app.addFoodLogItem(request)
+                let ingredients = ingredientRequests()
+                var ingredientsFailed = false
+                if !ingredients.isEmpty {
+                    do {
+                        try await app.addFoodLogItemIngredients(
+                            itemId: item.id, ingredients: ingredients)
+                    } catch {
+                        ingredientsFailed = true
+                    }
+                }
+                if ingredientsFailed {
+                    toastService.show(
+                        "Saved meal, but ingredients did not save.", style: .error)
+                } else {
+                    toastService.show("Food log saved")
+                }
                 dismiss()
             } catch {
                 alertMessage = error.localizedDescription

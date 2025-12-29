@@ -1,11 +1,16 @@
 import SwiftUI
 
 struct FoodLogHistoryView: View {
+    @EnvironmentObject private var app: AppState
     let items: [FoodLogItem]
     let mode: FoodLogHistoryGraphMode
     var onDelete: (FoodLogItem) -> Void
 
     @State private var showAllMonthHistory = false
+    @State private var expandedItemIds: Set<String> = []
+    @State private var ingredientsByItemId: [String: [FoodLogIngredient]] = [:]
+    @State private var ingredientErrors: [String: String] = [:]
+    @State private var loadingIngredientIds: Set<String> = []
 
     private let displayFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -111,11 +116,18 @@ struct FoodLogHistoryView: View {
                     Text("Calories: \(calories)")
                         .font(.caption)
                 }
+
+                if expandedItemIds.contains(item.id) {
+                    ingredientsSection(for: item)
+                }
             }
         }
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+        .onTapGesture {
+            toggleIngredients(for: item)
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 onDelete(item)
@@ -151,5 +163,74 @@ struct FoodLogHistoryView: View {
         else { return false }
 
         return date >= startOfMonth && date < startOfNextMonth
+    }
+
+    private func toggleIngredients(for item: FoodLogItem) {
+        if expandedItemIds.contains(item.id) {
+            expandedItemIds.remove(item.id)
+            return
+        }
+        expandedItemIds.insert(item.id)
+        if ingredientsByItemId[item.id] != nil { return }
+        if loadingIngredientIds.contains(item.id) { return }
+        loadingIngredientIds.insert(item.id)
+        Task {
+            do {
+                let ingredients = try await app.getFoodLogItemIngredients(itemId: item.id)
+                await MainActor.run {
+                    ingredientsByItemId[item.id] = ingredients
+                    ingredientErrors[item.id] = nil
+                    loadingIngredientIds.remove(item.id)
+                }
+            } catch {
+                await MainActor.run {
+                    ingredientErrors[item.id] = error.localizedDescription
+                    loadingIngredientIds.remove(item.id)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func ingredientsSection(for item: FoodLogItem) -> some View {
+        if loadingIngredientIds.contains(item.id) {
+            Text("Loading ingredients...")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else if let error = ingredientErrors[item.id], !error.isEmpty {
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else if let ingredients = ingredientsByItemId[item.id] {
+            if ingredients.isEmpty {
+                Text("No ingredients saved.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Ingredients")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(ingredients) { ingredient in
+                        Text(ingredientLine(ingredient))
+                            .font(.caption)
+                    }
+                }
+            }
+        }
+    }
+
+    private func ingredientLine(_ ingredient: FoodLogIngredient) -> String {
+        let name = ingredient.itemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let quantity = ingredient.quantity?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let unit = ingredient.unit?.trimmingCharacters(in: .whitespacesAndNewlines)
+        var detailParts: [String] = []
+        if let quantity, !quantity.isEmpty { detailParts.append(quantity) }
+        if let unit, !unit.isEmpty { detailParts.append(unit) }
+        if detailParts.isEmpty {
+            return name.isEmpty ? "Ingredient" : name
+        }
+        let detail = detailParts.joined(separator: " ")
+        return name.isEmpty ? detail : "\(name) · \(detail)"
     }
 }

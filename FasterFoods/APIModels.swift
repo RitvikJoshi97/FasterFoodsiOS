@@ -534,6 +534,66 @@ struct FoodLogItem: Codable, Identifiable {
     }
 }
 
+struct FoodLogIngredient: Codable, Identifiable, Hashable {
+    let id: String
+    let barcode: String?
+    let itemName: String
+    let quantity: String?
+    let unit: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case barcode
+        case itemName
+        case name
+        case quantity
+        case unit
+    }
+
+    init(
+        id: String, barcode: String? = nil, itemName: String, quantity: String? = nil,
+        unit: String? = nil
+    ) {
+        self.id = id
+        self.barcode = barcode
+        self.itemName = itemName
+        self.quantity = quantity
+        self.unit = unit
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let idValue = try? container.decodeFlexibleString(forKey: .id) {
+            id = idValue
+        } else {
+            id = UUID().uuidString
+        }
+        barcode = container.decodeFlexibleOptionalString(forKey: .barcode)
+        itemName =
+            container.decodeFlexibleOptionalString(forKey: .itemName)
+            ?? container.decodeFlexibleOptionalString(forKey: .name)
+            ?? "Ingredient"
+        quantity = container.decodeFlexibleOptionalString(forKey: .quantity)
+        unit = container.decodeFlexibleOptionalString(forKey: .unit)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(barcode, forKey: .barcode)
+        try container.encode(itemName, forKey: .itemName)
+        try container.encodeIfPresent(quantity, forKey: .quantity)
+        try container.encodeIfPresent(unit, forKey: .unit)
+    }
+}
+
+struct FoodLogIngredientCreateRequest: Codable, Hashable {
+    var barcode: Int64?
+    var itemName: String
+    var quantity: String?
+    var unit: String?
+}
+
 struct FoodLogCreateRequest: Codable {
     var name: String
     var meal: String

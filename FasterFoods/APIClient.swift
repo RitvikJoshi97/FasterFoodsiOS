@@ -598,6 +598,34 @@ actor APIClient {
         return FoodLogItem(request: requestBody)
     }
 
+    func getFoodLogItemIngredients(itemId: String) async throws -> [FoodLogIngredient] {
+        let (data, http) = try await request(
+            "/food-log/items/\(itemId)/ingredients", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        let decoder = JSONDecoder()
+        if let direct = try? decoder.decode([FoodLogIngredient].self, from: data) {
+            return direct
+        }
+        if let wrapped = try? decoder.decode([String: [FoodLogIngredient]].self, from: data) {
+            if let ingredients = wrapped["ingredients"] ?? wrapped["items"] ?? wrapped["data"] {
+                return ingredients
+            }
+        }
+        return []
+    }
+
+    func addFoodLogItemIngredients(
+        itemId: String,
+        ingredients: [FoodLogIngredientCreateRequest]
+    ) async throws {
+        let encoder = JSONEncoder()
+        let body = try encoder.encode(ingredients)
+        let (_, http) = try await request(
+            "/food-log/items/\(itemId)/ingredients", method: "POST", body: body,
+            contentType: "application/json", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+    }
+
     func deleteFoodLogItem(id: String) async throws {
         let (_, http) = try await request(
             "/food-log/items/\(id)", method: "DELETE", authorized: true)
