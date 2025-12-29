@@ -29,6 +29,8 @@ struct DashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var todaysProgressDestination: TodaysProgressDestination?
     @State private var isHeaderCompact = false
+    @State private var selectedAchievement: Achievement?
+    @State private var showAllAchievements = false
 
     private let workoutGoalMinutes: Double = 45
     private let macroTargets = MacroTargets(calories: 2000, carbs: 240, protein: 120, fat: 70)
@@ -82,36 +84,28 @@ struct DashboardView: View {
                         SuggestedReadsSection(articles: featuredArticles)
                     }
 
-                    GoalsView<AnyView, AnyView, AnyView>(
-                        gamePlanView: { onReadMore in
-                            guard let content = app.gamePlanContent else {
-                                return AnyView(EmptyView())
-                            }
-                            return AnyView(
-                                GamePlanView(
-                                    previewMarkdown: content.previewMarkdown,
-                                    onReadMore: onReadMore
-                                )
-                                .padding(.trailing, 12)
-                            )
-                        },
-                        expandedGamePlanView: {
-                            guard let content = app.gamePlanContent else {
-                                return AnyView(EmptyView())
-                            }
-                            return AnyView(ExpandedGamePlanView(markdown: content.markdown))
-                        },
-                        gamePlanPlaceholderView: {
-                            AnyView(
-                                GamePlanPlaceholderView(
-                                    message: "We're preparing your plan."
-                                )
-                                .padding(.trailing, 12)
-                            )
-                        },
-                        hasGamePlanContent: app.gamePlanContent != nil,
-                        showGamePlanPlaceholder: app.gamePlanStatus.isPreparing
-                    )
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Label("Goals and Achievements", systemImage: "flag.checkered")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                        }
+
+                        GoalsView(showHeader: false)
+
+                        AchievementsOverviewView(
+                            achievements: achievementsForDisplay,
+                            onSelect: { achievement in
+                                selectedAchievement = achievement
+                            },
+                            onViewAll: {
+                                showAllAchievements = true
+                            },
+                            maxVisible: 4
+                        )
+                    }
+
+                    GamePlanSectionView()
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 24)
@@ -153,6 +147,15 @@ struct DashboardView: View {
                 case .customMetrics:
                     CustomMetricsView(embedsInNavigationStack: false)
                 }
+            }
+            .navigationDestination(item: $selectedAchievement) { achievement in
+                AllAchievementsView(
+                    achievements: achievementsForDisplay,
+                    selectedAchievement: achievement
+                )
+            }
+            .navigationDestination(isPresented: $showAllAchievements) {
+                AllAchievementsView(achievements: achievementsForDisplay)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -260,6 +263,10 @@ extension DashboardView {
             progress: progress,
             state: state
         )
+    }
+
+    fileprivate var achievementsForDisplay: [Achievement] {
+        Achievement.sortedForDisplay(Achievement.sample)
     }
 
     fileprivate var foodLogSummary: FoodLogSummary {

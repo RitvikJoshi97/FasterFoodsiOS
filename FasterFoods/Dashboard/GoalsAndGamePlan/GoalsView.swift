@@ -1,44 +1,36 @@
 import Foundation
 import SwiftUI
 
-struct GoalsView<
-    GamePlanContentView: View, ExpandedGamePlanContentView: View, GamePlanPlaceholderView: View
->: View {
-    let gamePlanView: (@escaping () -> Void) -> GamePlanContentView
-    let expandedGamePlanView: () -> ExpandedGamePlanContentView
-    let gamePlanPlaceholderView: () -> GamePlanPlaceholderView
-    let hasGamePlanContent: Bool
-    let showGamePlanPlaceholder: Bool
+struct GoalsView: View {
+    let showHeader: Bool
 
     @State private var savedGoals: [Goal] = []
     @State private var isLoading = true
     @State private var showAddGoal = false
-    @State private var showExpandedGamePlan = false
     @State private var isGoalsExpanded = false
+
+    init(showHeader: Bool = true) {
+        self.showHeader = showHeader
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Goals and Game Plan", systemImage: "flag.checkered")
-                .font(.headline)
-                .foregroundStyle(.primary)
+            if showHeader {
+                Label("Goals", systemImage: "flag.checkered")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
 
-            Text("Tell us your goals and let us help curate a game plan.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text("Tell us your goals and let us help curate a plan.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding()
             } else {
-                VStack(alignment: .leading, spacing: 16) {
-                    goalsList
-                    if hasGamePlanContent {
-                        gamePlanView { showExpandedGamePlan = true }
-                    } else if showGamePlanPlaceholder {
-                        gamePlanPlaceholderView()
-                    }
-                }
+                goalsList
             }
         }
         .padding(.vertical, 4)
@@ -48,9 +40,6 @@ struct GoalsView<
                     savedGoals.insert(goal, at: 0)
                 }
             }
-        }
-        .sheet(isPresented: $showExpandedGamePlan) {
-            expandedGamePlanView()
         }
         .task {
             await loadGoals()
