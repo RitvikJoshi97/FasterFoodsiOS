@@ -91,7 +91,7 @@ struct DashboardView: View {
                                 .foregroundStyle(.primary)
                         }
 
-                        GoalsView(showHeader: false)
+                        // GoalsView(showHeader: false)
 
                         AchievementsOverviewView(
                             achievements: achievementsForDisplay,
@@ -149,13 +149,13 @@ struct DashboardView: View {
                 }
             }
             .navigationDestination(item: $selectedAchievement) { achievement in
-                AllAchievementsView(
+                AllGoalsAndAchievementsView(
                     achievements: achievementsForDisplay,
                     selectedAchievement: achievement
                 )
             }
             .navigationDestination(isPresented: $showAllAchievements) {
-                AllAchievementsView(achievements: achievementsForDisplay)
+                AllGoalsAndAchievementsView(achievements: achievementsForDisplay)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

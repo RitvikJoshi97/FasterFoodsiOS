@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AllAchievementsView: View {
+struct AllGoalsAndAchievementsView: View {
     let achievements: [Achievement]
     let selectedAchievement: Achievement?
     @State private var selectedAchievementState: Achievement?
@@ -24,10 +24,13 @@ struct AllAchievementsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(
-                    "Your achievements highlight consistency across meals, workouts, and habits. Keep logging to unlock more milestones tailored to your routine."
+                    "Your goals and achievements highlight consistency across meals, workouts, and habits. Keep logging to unlock more milestones tailored to your routine."
                 )
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+                Text("Goals")
+                    .font(.headline)
 
                 LazyVGrid(
                     columns: [
@@ -52,12 +55,15 @@ struct AllAchievementsView: View {
                     Button {
                         showAddGoal = true
                     } label: {
-                        AddAchievementBadgeView(itemSize: completedItemSize)
+                        AddGoalBadgeView(itemSize: completedItemSize)
                     }
                     .buttonStyle(.plain)
                 }
 
                 if !completedAchievements.isEmpty {
+                    Text("Achievements")
+                        .font(.headline)
+
                     LazyVGrid(
                         columns: [
                             GridItem(.flexible(), spacing: 16),
@@ -83,7 +89,7 @@ struct AllAchievementsView: View {
             .padding(.horizontal)
             .padding(.vertical, 24)
         }
-        .navigationTitle("Achievements")
+        .navigationTitle("Goals and Achievements")
         .navigationBarTitleDisplayMode(.large)
         .navigationDestination(item: $selectedAchievementState) { achievement in
             AchievementDetailView(achievement: achievement)
@@ -96,7 +102,7 @@ struct AllAchievementsView: View {
     }
 }
 
-private struct AddAchievementBadgeView: View {
+private struct AddGoalBadgeView: View {
     let itemSize: CGFloat
 
     var body: some View {
@@ -114,6 +120,6 @@ private struct AddAchievementBadgeView: View {
             .foregroundStyle(Color.secondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Add achievement")
+        .accessibilityLabel("Add goal")
     }
 }

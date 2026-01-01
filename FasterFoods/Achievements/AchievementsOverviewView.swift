@@ -42,7 +42,7 @@ struct AchievementsOverviewView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Button("Show all achievements") {
+                    Button("Show all goals and achievements") {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedAchievement = nil
                         }
@@ -114,7 +114,7 @@ private struct ViewAllBadgeView: View {
             .foregroundStyle(Color.secondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("View all achievements")
+        .accessibilityLabel("View all goals and achievements")
     }
 }
 

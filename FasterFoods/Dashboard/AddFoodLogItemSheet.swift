@@ -15,11 +15,16 @@ struct AddFoodLogItemSheet: View {
     @State private var mealScanInfo: ScannedProductInfo?
     @State private var manualMacros = MacroTotals()
     @State private var isUpdatingMacros = false
+    @State private var friendSearch = ""
+    @State private var selectedFriends = Set<String>()
+    @State private var revealedFriend: String?
+    @State private var isAddFriendPresented = false
 
     private let mealTimeOptions = FoodLogViewModel.MealTime.allCases
     private let portionOptions = FoodLogViewModel.PortionSize.allCases
     private let moodOptions = FoodLogViewModel.Mood.allCases
     private let categoryOptions = FoodLogViewModel.MealCategory.allCases
+    private let friendOptions = ["Shreshtha", "Steven", "Kartik", "Chitra"]
     private let commonUnits = [
         "pieces", "lbs", "kg", "oz", "g", "ml", "l", "pints", "liters", "cups", "tbsp", "tsp",
         "loaves", "containers", "bottles", "cans", "bags", "boxes",
@@ -59,6 +64,16 @@ struct AddFoodLogItemSheet: View {
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
         )
+    }
+
+    private var splitCount: Double {
+        Double(max(selectedFriends.count + 1, 1))
+    }
+
+    private var filteredFriends: [String] {
+        let trimmed = friendSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        return friendOptions.filter { $0.localizedCaseInsensitiveContains(trimmed) }
     }
 
     var body: some View {
@@ -259,6 +274,82 @@ struct AddFoodLogItemSheet: View {
                     }
                 }
 
+                Section("Split with") {
+                    if !selectedFriends.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(selectedFriends.sorted(), id: \.self) { friend in
+                                    HStack(spacing: 6) {
+                                        Text(friend)
+                                            .font(.footnote)
+                                        if revealedFriend == friend {
+                                            Button {
+                                                selectedFriends.remove(friend)
+                                                revealedFriend = nil
+                                                recalculateMacros()
+                                            } label: {
+                                                Image(systemName: "xmark")
+                                                    .font(.caption2)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color.secondary.opacity(0.15))
+                                    .clipShape(Capsule())
+                                    .contentShape(Capsule())
+                                    .onTapGesture {
+                                        revealedFriend = (revealedFriend == friend) ? nil : friend
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        TextField("Search friend", text: $friendSearch)
+                        Button {
+                            isAddFriendPresented = true
+                        } label: {
+                            Image(systemName: "person.badge.plus")
+                                .imageScale(.medium)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Add friend")
+                    }
+
+                    if friendSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        EmptyView()
+                    } else if filteredFriends.isEmpty {
+                        Text("No matches")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(filteredFriends, id: \.self) { friend in
+                            Button {
+                                if selectedFriends.contains(friend) {
+                                    selectedFriends.remove(friend)
+                                } else {
+                                    selectedFriends.insert(friend)
+                                }
+                                recalculateMacros()
+                            } label: {
+                                HStack {
+                                    Text(friend)
+                                    Spacer()
+                                    if selectedFriends.contains(friend) {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.tint)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
                 Section {
                     Button {
                         HapticSoundPlayer.shared.playPrimaryTap()
@@ -325,6 +416,10 @@ struct AddFoodLogItemSheet: View {
                     }
                 }
             }
+            .sheet(isPresented: $isAddFriendPresented) {
+                AddFriendSheet()
+                    .presentationDetents([.medium, .large])
+            }
         }
     }
 
@@ -366,7 +461,7 @@ struct AddFoodLogItemSheet: View {
     private func updateManualMacro(_ newValue: String, field: MacroField) {
         guard !isUpdatingMacros else { return }
         let scannedTotals = scannedMacroTotals()
-        let entered = parseDouble(newValue)
+        let entered = parseDouble(newValue) * splitCount
         switch field {
         case .calories:
             manualMacros.calories = max(entered - scannedTotals.calories, 0)
@@ -387,6 +482,11 @@ struct AddFoodLogItemSheet: View {
     private func applyMacroTotals(_ scannedTotals: MacroTotals) {
         var totals = manualMacros
         totals.add(scannedTotals)
+        let split = splitCount
+        totals.calories /= split
+        totals.carbohydrates /= split
+        totals.protein /= split
+        totals.fat /= split
         isUpdatingMacros = true
         viewModel.calories = formatMacroValue(totals.calories, decimals: 0)
         viewModel.carbohydrates = formatMacroValue(totals.carbohydrates, decimals: 1)
@@ -496,6 +596,14 @@ struct AddFoodLogItemSheet: View {
         return String(format: "%.\(decimals)f", value)
     }
 
+    private func formatQuantityValue(_ value: Double) -> String {
+        guard value > 0 else { return "" }
+        if value == floor(value) {
+            return String(format: "%.0f", value)
+        }
+        return String(format: "%.2f", value)
+    }
+
     private func parseDouble(_ text: String?) -> Double {
         guard let raw = text, !raw.isEmpty else { return 0 }
         let allowedCharacters = CharacterSet(charactersIn: "0123456789.")
@@ -508,6 +616,15 @@ struct AddFoodLogItemSheet: View {
             let name = entry.name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty else { return nil }
             let quantity = entry.quantity.trimmingCharacters(in: .whitespacesAndNewlines)
+            let quantityValue = parseDouble(quantity)
+            let adjustedQuantity: String?
+            if quantity.isEmpty {
+                adjustedQuantity = nil
+            } else if quantityValue > 0, splitCount > 1 {
+                adjustedQuantity = formatQuantityValue(quantityValue / splitCount)
+            } else {
+                adjustedQuantity = quantity
+            }
             let unit = entry.unit.trimmingCharacters(in: .whitespacesAndNewlines)
             let barcodeString =
                 entry.scanInfo?.barcode.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -515,7 +632,7 @@ struct AddFoodLogItemSheet: View {
             return FoodLogIngredientCreateRequest(
                 barcode: barcode,
                 itemName: name,
-                quantity: quantity.isEmpty ? nil : quantity,
+                quantity: adjustedQuantity,
                 unit: unit.isEmpty ? nil : unit
             )
         }

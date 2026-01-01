@@ -28,7 +28,7 @@ struct AchievementDetailView: View {
             Spacer()
         }
         .padding(.vertical, 24)
-        .navigationTitle("Achievement")
+        .navigationTitle(achievement.isCompleted ? "Achievement" : "Goal")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if achievement.isCompleted {

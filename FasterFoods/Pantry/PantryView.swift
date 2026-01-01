@@ -18,6 +18,7 @@ struct PantryView: View {
     @State private var usingRecommendationId: String?
     @State private var dismissingRecommendationId: String?
     @State private var selectedRecommendation: ShoppingRecommendation?
+    @State private var receiptResults: ReceiptScanResult?
     @State private var showReceiptSheet: Bool = false
     @FocusState private var focusedField: Field?
     @State private var recommendationsError: String?
@@ -133,20 +134,13 @@ struct PantryView: View {
             Text(alertMessage ?? "Please try again later.")
         }
         .sheet(isPresented: $showReceiptSheet) {
-            VStack(spacing: 16) {
-                Image(systemName: "doc.text.viewfinder")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Color.accentColor)
-                Text("Receipt scanning coming soon")
-                    .font(.headline)
-                Text("You'll be able to add pantry items from photos and receipts right here.")
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                Button("Got it") { showReceiptSheet = false }
-                    .buttonStyle(.borderedProminent)
+            ReceiptScannerView { result in
+                receiptResults = result
+                toastService.show("Receipt captured")
             }
-            .padding()
-            .presentationDetents([.fraction(0.35)])
+        }
+        .sheet(item: $receiptResults) { result in
+            ReceiptResultsSheetView(result: result)
         }
         .sheet(item: $selectedRecommendation) { recommendation in
             RecommendationDetailSheet(
