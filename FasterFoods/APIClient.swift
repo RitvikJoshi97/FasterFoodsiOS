@@ -537,6 +537,26 @@ actor APIClient {
         try await sendShoppingRecommendationFeedback(id: id, action: action)
     }
 
+    func processReceiptOCR(text: String) async throws -> ReceiptScanResult {
+        let body = try JSONSerialization.data(withJSONObject: ["ocrText": text])
+        let (data, http) = try await request(
+            "/pantry/receipts/ocr_text", method: "POST", body: body,
+            contentType: "application/json", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        let decoder = JSONDecoder()
+        if let direct = try? decoder.decode(ReceiptScanResult.self, from: data) {
+            return direct
+        }
+        if let wrapped = try? decoder.decode([String: ReceiptScanResult].self, from: data) {
+            if let receipt = wrapped["receipt"] { return receipt }
+            if let receipt = wrapped["data"] { return receipt }
+            if let first = wrapped.values.first { return first }
+        }
+        throw APIError(
+            statusCode: nil, message: "Unexpected receipt response", unverified: false,
+            isNetworkError: false)
+    }
+
     // MARK: - Food Log
 
     func getFoodLogItems() async throws -> [FoodLogItem] {
@@ -596,6 +616,34 @@ actor APIClient {
             return first
         }
         return FoodLogItem(request: requestBody)
+    }
+
+    func getFoodLogItemIngredients(itemId: String) async throws -> [FoodLogIngredient] {
+        let (data, http) = try await request(
+            "/food-log/items/\(itemId)/ingredients", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        let decoder = JSONDecoder()
+        if let direct = try? decoder.decode([FoodLogIngredient].self, from: data) {
+            return direct
+        }
+        if let wrapped = try? decoder.decode([String: [FoodLogIngredient]].self, from: data) {
+            if let ingredients = wrapped["ingredients"] ?? wrapped["items"] ?? wrapped["data"] {
+                return ingredients
+            }
+        }
+        return []
+    }
+
+    func addFoodLogItemIngredients(
+        itemId: String,
+        ingredients: [FoodLogIngredientCreateRequest]
+    ) async throws {
+        let encoder = JSONEncoder()
+        let body = try encoder.encode(ingredients)
+        let (_, http) = try await request(
+            "/food-log/items/\(itemId)/ingredients", method: "POST", body: body,
+            contentType: "application/json", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
     }
 
     func deleteFoodLogItem(id: String) async throws {
@@ -916,5 +964,32 @@ actor APIClient {
         }
 
         return recommendations
+    }
+
+    // MARK: - Onboarding
+
+    func sendOnboardingMessage(
+        message: String,
+        conversationId: String?
+    ) async throws -> OnboardingChatResponse {
+        let requestBody = OnboardingChatRequest(conversationId: conversationId, message: message)
+        let body = try JSONEncoder().encode(requestBody)
+        let (data, http) = try await request(
+            "/agent/onboarding",
+            method: "POST",
+            body: body,
+            contentType: "application/json",
+            authorized: true
+        )
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        return try JSONDecoder().decode(OnboardingChatResponse.self, from: data)
+    }
+
+    // MARK: - Game Plan
+
+    func getLatestGamePlan() async throws -> GamePlan {
+        let (data, http) = try await request("/gameplan/latest", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        return try JSONDecoder().decode(GamePlan.self, from: data)
     }
 }

@@ -23,6 +23,7 @@ struct ShoppingListView: View {
     @State private var dismissingRecommendationId: String?
     @State private var usingRecommendationId: String?
     @State private var selectedRecommendation: ShoppingRecommendation?
+    @State private var isScannerPresented = false
     @State private var collapsedListIds: Set<String> = []
     @State private var listPendingDeletion: ShoppingList?
     @FocusState private var focusedField: Field?
@@ -247,6 +248,11 @@ struct ShoppingListView: View {
             )
             .withDetents()
         }
+        .sheet(isPresented: $isScannerPresented) {
+            ScannerView { scannedProduct in
+                applyScan(scannedProduct)
+            }
+        }
     }
 
     @ViewBuilder
@@ -288,8 +294,19 @@ struct ShoppingListView: View {
     private var quickAddSection: some View {
         Section {
             VStack(spacing: 12) {
-                TextField("Item name", text: $newItemName)
-                    .focused($focusedField, equals: .itemName)
+                HStack(spacing: 8) {
+                    TextField("Item name", text: $newItemName)
+                        .focused($focusedField, equals: .itemName)
+
+                    Button {
+                        isScannerPresented = true
+                    } label: {
+                        Image(systemName: "barcode.viewfinder")
+                            .imageScale(.medium)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Scan item")
+                }
 
                 if shouldShowQuickAddDetails {
                     if !isSuperQuickMode {
@@ -313,7 +330,7 @@ struct ShoppingListView: View {
                             Text("Default")
                                 .foregroundStyle(.blue)
                         } else {
-                            Picker("List", selection: $selectedListId) {
+                            Picker("", selection: $selectedListId) {
                                 ForEach(app.shoppingLists) { list in
                                     Text(list.name).tag(list.id)
                                 }
@@ -321,6 +338,7 @@ struct ShoppingListView: View {
                                     .tag(newListSentinel)
                             }
                             .pickerStyle(.menu)
+                            .labelsHidden()
                         }
                     }
 
@@ -848,6 +866,41 @@ struct ShoppingListView: View {
         } catch {
             alertMessage = error.localizedDescription
         }
+    }
+
+    private func applyScan(_ product: ScannedProductInfo) {
+        newItemName = product.name
+        if let quantity = preferredQuantity(for: product), !isSuperQuickMode {
+            newItemQuantity = formatQuantity(quantity)
+        }
+        if let unit = preferredUnit(for: product), !isSuperQuickMode {
+            newItemUnit = unit
+        }
+        focusedField = .itemName
+    }
+
+    private func preferredQuantity(for product: ScannedProductInfo) -> Double? {
+        if let quantity = product.productQuantity, quantity > 0 {
+            return quantity
+        }
+        if let quantity = product.servingQuantity, quantity > 0 {
+            return quantity
+        }
+        return nil
+    }
+
+    private func preferredUnit(for product: ScannedProductInfo) -> String? {
+        let unit = product.productQuantityUnit ?? product.servingQuantityUnit
+        let trimmed = unit?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+
+    private func formatQuantity(_ value: Double) -> String {
+        let rounded = value.rounded()
+        if abs(value - rounded) < 0.0001 {
+            return String(Int(rounded))
+        }
+        return String(format: "%.2f", value)
     }
 
     private func scheduleSuggestionExpansionIfNeeded() {

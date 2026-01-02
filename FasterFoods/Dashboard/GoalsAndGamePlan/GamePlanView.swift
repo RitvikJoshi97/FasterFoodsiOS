@@ -12,14 +12,7 @@ struct GamePlanView: View {
                 .fontWeight(.semibold)
 
             Group {
-                if let attributed = makeGamePlanAttributedString(
-                    from: previewMarkdown,
-                    paragraphSpacing: 8
-                ) {
-                    Text(attributed)
-                } else {
-                    Text(previewMarkdown)
-                }
+                Text(GamePlanMarkdownRenderer.attributed(from: previewMarkdown))
             }
             .font(.footnote)
             .multilineTextAlignment(.leading)
@@ -40,6 +33,7 @@ struct GamePlanView: View {
             .buttonStyle(.plain)
         }
         .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.green.opacity(0.12))
@@ -51,40 +45,56 @@ struct GamePlanView: View {
     }
 }
 
+enum GamePlanMarkdownRenderer {
+    static func attributed(from markdown: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        )
+        return (try? AttributedString(markdown: markdown, options: options))
+            ?? AttributedString(markdown)
+    }
+}
+
+struct GamePlanPlaceholderView: View {
+    let message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Game Plan", systemImage: "map")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            ProgressView()
+                .progressViewStyle(.circular)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.green.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.green.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
 struct GamePlanContent {
     let previewMarkdown: String
     let markdown: String
 }
 
-enum GamePlanLoader {
-    private static var cachedContent: GamePlanContent?
-
-    static func load(maxPreviewLength: Int = 360) -> GamePlanContent? {
-        if let cachedContent {
-            return cachedContent
-        }
-
-        let possibleURLs: [URL?] = [
-            Bundle.main.url(forResource: "gameplan", withExtension: "md", subdirectory: "GamePlan"),
-            Bundle.main.url(forResource: "gameplan", withExtension: "md"),
-        ]
-
-        for url in possibleURLs.compactMap({ $0 }) {
-            if let content = try? String(contentsOf: url, encoding: .utf8) {
-                let preview = buildPreview(from: content, maxLength: maxPreviewLength)
-                let spacedPreview = addParagraphSpacing(to: preview)
-                let spacedContent = addParagraphSpacing(to: content)
-                if !spacedPreview.isEmpty {
-                    let result = GamePlanContent(
-                        previewMarkdown: spacedPreview,
-                        markdown: spacedContent
-                    )
-                    cachedContent = result
-                    return result
-                }
-            }
-        }
-        return nil
+extension GamePlanContent {
+    static func from(markdown: String, maxPreviewLength: Int = 360) -> GamePlanContent? {
+        let preview = buildPreview(from: markdown, maxLength: maxPreviewLength)
+        let spacedPreview = addParagraphSpacing(to: preview)
+        let spacedContent = addParagraphSpacing(to: markdown)
+        guard !spacedPreview.isEmpty else { return nil }
+        return GamePlanContent(previewMarkdown: spacedPreview, markdown: spacedContent)
     }
 
     private static func addParagraphSpacing(to markdown: String) -> String {
@@ -123,26 +133,30 @@ enum GamePlanLoader {
     }
 }
 
-func makeGamePlanAttributedString(
-    from markdown: String,
-    paragraphSpacing: CGFloat
-) -> AttributedString? {
-    guard
-        var attributed = try? AttributedString(
-            markdown: markdown,
-            options: .init(
-                interpretedSyntax: .full,
-                failurePolicy: .returnPartiallyParsedIfPossible
-            )
-        )
-    else { return nil }
+enum GamePlanLoader {
+    private static var cachedContent: GamePlanContent?
 
-    let paragraphStyle = NSMutableParagraphStyle()
-    paragraphStyle.paragraphSpacing = paragraphSpacing
+    static func load(maxPreviewLength: Int = 360) -> GamePlanContent? {
+        if let cachedContent {
+            return cachedContent
+        }
 
-    let mutable = NSMutableAttributedString(attributedString: NSAttributedString(attributed))
-    let range = NSRange(location: 0, length: mutable.length)
-    mutable.addAttribute(NSAttributedString.Key.paragraphStyle, value: paragraphStyle, range: range)
+        let possibleURLs: [URL?] = [
+            Bundle.main.url(forResource: "gameplan", withExtension: "md", subdirectory: "GamePlan"),
+            Bundle.main.url(forResource: "gameplan", withExtension: "md"),
+        ]
 
-    return AttributedString(mutable)
+        for url in possibleURLs.compactMap({ $0 }) {
+            if let content = try? String(contentsOf: url, encoding: .utf8) {
+                if let result = GamePlanContent.from(
+                    markdown: content,
+                    maxPreviewLength: maxPreviewLength
+                ) {
+                    cachedContent = result
+                    return result
+                }
+            }
+        }
+        return nil
+    }
 }

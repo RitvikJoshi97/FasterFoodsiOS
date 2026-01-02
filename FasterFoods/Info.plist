@@ -17,5 +17,7 @@
 	</array>
 	<key>GIDClientID</key>
 	<string>71487037117-cjeshkm6vrrm9u20h89uf882f9pe4jid.apps.googleusercontent.com</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow access to the camera to scan ingredients.</string>
 </dict>
 </plist>

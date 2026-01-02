@@ -67,7 +67,36 @@ struct RootTabShell: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $app.showAssistant) {
+            ChatAssistantView(
+                title: app.assistantTitle,
+                script: app.assistantScript,
+                queue: app.assistantMode == .onboarding
+                    ? OnboardingMessageQueue()
+                    : MockAssistantMessageQueue(),
+                bootstrapMessage: app.assistantMode == .onboarding
+                    ? AssistantScript.onboardingBootstrapMessage
+                    : nil,
+                introMessages: app.assistantMode == .onboarding
+                    ? AssistantScript.onboardingIntroMessages
+                    : [],
+                dismissLabel: app.assistantMode == .onboarding ? "Later" : "Close",
+                onComplete: {
+                    if app.assistantMode == .onboarding {
+                        app.markOnboardingComplete()
+                    }
+                    app.showAssistant = false
+                },
+                onDismiss: {
+                    app.showAssistant = false
+                }
+            )
+            .environmentObject(app)
+        }
         .glassNavigationBarStyle()
+        .onAppear {
+            app.presentOnboardingIfNeeded()
+        }
     }
 }
 

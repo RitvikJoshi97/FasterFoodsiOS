@@ -7,7 +7,7 @@ struct WorkoutSuggestionsCard: View {
     let onRefreshRecommendations: () -> Void
     let onDismissRecommendation: (String) -> Void
     let onAddWorkout: () -> Void
-    @State private var highlightedSuggestion: String = ""
+    @Binding var highlightedSuggestion: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -33,6 +33,13 @@ struct WorkoutSuggestionsCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .clipShape(
+                    CapsuleCornerShape(
+                        outerRadius: 16,
+                        innerRadius: 2,
+                        innerEdge: .trailing
+                    )
+                )
                 .disabled(highlightedSuggestion.isEmpty)
 
                 Button(action: onAddWorkout) {
@@ -44,6 +51,13 @@ struct WorkoutSuggestionsCard: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.secondary)
+                .clipShape(
+                    CapsuleCornerShape(
+                        outerRadius: 16,
+                        innerRadius: 2,
+                        innerEdge: .leading
+                    )
+                )
             }
         }
         .padding(.vertical, 4)
@@ -52,17 +66,21 @@ struct WorkoutSuggestionsCard: View {
         .onChange(of: recommendations.map(\.id)) { _ in updateHighlight() }
     }
 
-    private var recommendationHeadline: Text {
-        guard !highlightedSuggestion.isEmpty else {
-            return Text("Log a workout to keep your momentum going.")
+    @ViewBuilder
+    private var recommendationHeadline: some View {
+        if highlightedSuggestion.isEmpty {
+            Text("Log a workout to keep your momentum going.")
                 .foregroundStyle(.secondary)
+        } else {
+            RecommendationWrappedText(
+                systemImageName: WorkoutSuggestionIconProvider.systemImageName(
+                    for: highlightedSuggestion,
+                    quickPicks: viewModel.quickPicks,
+                    recommendations: recommendations
+                ),
+                highlightedText: highlightedSuggestion
+            )
         }
-        return Text("We recommend ")
-            + Text(highlightedSuggestion)
-            .foregroundStyle(Color.accentColor)
-            .fontWeight(.semibold)
-            + Text(" today. It should give you a nice boost of energy.")
-            .foregroundStyle(.primary)
     }
 
     private var highlightedButtonTitle: String {
@@ -102,6 +120,172 @@ struct WorkoutSuggestionsCard: View {
             viewModel.applyQuickPick(quickPick)
             onAddWorkout()
         }
+    }
+
+    // Icon selection shared via WorkoutSuggestionIconProvider.
+}
+
+private struct RecommendationWrappedText: View {
+    let systemImageName: String
+    let highlightedText: String
+    @State private var height: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            RecommendationWrappedTextView(
+                width: proxy.size.width,
+                height: $height,
+                systemImageName: systemImageName,
+                highlightedText: highlightedText
+            )
+            .frame(height: height)
+        }
+        .frame(height: height)
+    }
+}
+
+private struct CapsuleCornerShape: Shape {
+    enum Edge {
+        case leading
+        case trailing
+    }
+
+    let outerRadius: CGFloat
+    let innerRadius: CGFloat
+    let innerEdge: Edge
+
+    func path(in rect: CGRect) -> Path {
+        let leadingRadius = innerEdge == .leading ? innerRadius : outerRadius
+        let trailingRadius = innerEdge == .trailing ? innerRadius : outerRadius
+        let radii = RectangleCornerRadii(
+            topLeading: leadingRadius,
+            bottomLeading: leadingRadius,
+            bottomTrailing: trailingRadius,
+            topTrailing: trailingRadius
+        )
+        return Path(roundedRect: rect, cornerRadii: radii)
+    }
+}
+
+private struct RecommendationWrappedTextView: UIViewRepresentable {
+    let width: CGFloat
+    @Binding var height: CGFloat
+    let systemImageName: String
+    let highlightedText: String
+
+    func makeUIView(context: Context) -> RecommendationWrappedTextContainer {
+        RecommendationWrappedTextContainer()
+    }
+
+    func updateUIView(_ uiView: RecommendationWrappedTextContainer, context: Context) {
+        uiView.update(
+            systemImageName: systemImageName,
+            highlightedText: highlightedText
+        )
+        let targetSize = CGSize(width: width, height: .greatestFiniteMagnitude)
+        let size = uiView.sizeThatFits(targetSize)
+        if abs(size.height - height) > 0.5 {
+            DispatchQueue.main.async {
+                height = size.height
+            }
+        }
+    }
+}
+
+private final class RecommendationWrappedTextContainer: UIView {
+    private let imageView = UIImageView()
+    private let textView = UITextView()
+
+    private let imageSize = CGSize(width: 56, height: 56)
+    private let imagePadding: CGFloat = 12
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
+
+    private func setup() {
+        backgroundColor = .clear
+
+        imageView.contentMode = .scaleAspectFit
+        imageView.tintColor = UIColor.secondaryLabel
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+
+        textView.backgroundColor = .clear
+        textView.isEditable = false
+        textView.isScrollEnabled = false
+        textView.isSelectable = false
+        textView.textContainerInset = .zero
+        textView.textContainer.lineFragmentPadding = 0
+        textView.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(textView)
+        addSubview(imageView)
+
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: imageSize.width),
+            imageView.heightAnchor.constraint(equalToConstant: imageSize.height),
+
+            textView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            textView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            textView.topAnchor.constraint(equalTo: topAnchor),
+            textView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    func update(systemImageName: String, highlightedText: String) {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 40, weight: .semibold)
+        imageView.image = UIImage(systemName: systemImageName, withConfiguration: configuration)
+
+        let baseFont = UIFont.preferredFont(forTextStyle: .body)
+        let boldFont = UIFont.boldSystemFont(ofSize: baseFont.pointSize)
+        let accentColor = UIColor.tintColor
+        let primaryColor = UIColor.label
+
+        let text = NSMutableAttributedString(
+            string: "We recommend ",
+            attributes: [
+                .font: baseFont,
+                .foregroundColor: primaryColor,
+            ]
+        )
+        let highlighted = NSAttributedString(
+            string: highlightedText,
+            attributes: [
+                .font: boldFont,
+                .foregroundColor: accentColor,
+            ]
+        )
+        let tail = NSAttributedString(
+            string: " today. It should give you a nice boost of energy.",
+            attributes: [
+                .font: baseFont,
+                .foregroundColor: primaryColor,
+            ]
+        )
+        text.append(highlighted)
+        text.append(tail)
+        textView.attributedText = text
+
+        setNeedsLayout()
+        layoutIfNeeded()
+
+        let imageFrame = convert(imageView.frame, to: textView)
+        let paddedFrame = imageFrame.insetBy(dx: -imagePadding, dy: -4)
+        textView.textContainer.exclusionPaths = [UIBezierPath(rect: paddedFrame)]
+    }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        let targetSize = CGSize(width: size.width, height: .greatestFiniteMagnitude)
+        let measuredSize = textView.sizeThatFits(targetSize)
+        return CGSize(width: size.width, height: max(measuredSize.height, imageSize.height))
     }
 }
 
@@ -205,7 +389,7 @@ private struct WorkoutSuggestionsSection: View {
 }
 
 extension ShoppingRecommendation {
-    fileprivate var quickPickDefinition: WorkoutQuickPickDefinition? {
+    var quickPickDefinition: WorkoutQuickPickDefinition? {
         guard let metadata else { return nil }
         let activity =
             metadata["activityID"] ?? metadata["activity_id"]

@@ -52,11 +52,13 @@ struct UserSettings: Codable {
         case darkMode
     }
 
-    init(theme: ThemePreference = .light,
-         unitSystem: UnitSystem = .imperial,
-         notificationsEnabled: Bool = true,
-         language: String = "en",
-         foodLoggingLevel: FoodLoggingLevel = .beginner) {
+    init(
+        theme: ThemePreference = .light,
+        unitSystem: UnitSystem = .imperial,
+        notificationsEnabled: Bool = true,
+        language: String = "en",
+        foodLoggingLevel: FoodLoggingLevel = .beginner
+    ) {
         self.theme = theme
         self.unitSystem = unitSystem
         self.notificationsEnabled = notificationsEnabled
@@ -68,7 +70,8 @@ struct UserSettings: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         if let explicitTheme = try container.decodeIfPresent(String.self, forKey: .theme),
-           let resolvedTheme = ThemePreference(rawValue: explicitTheme) {
+            let resolvedTheme = ThemePreference(rawValue: explicitTheme)
+        {
             theme = resolvedTheme
         } else if let legacyDarkMode = try container.decodeIfPresent(Bool.self, forKey: .darkMode) {
             theme = legacyDarkMode ? .dark : .light
@@ -77,17 +80,20 @@ struct UserSettings: Codable {
         }
 
         if let rawUnit = try container.decodeIfPresent(String.self, forKey: .unitSystem),
-           let resolvedUnit = UnitSystem(rawValue: rawUnit) {
+            let resolvedUnit = UnitSystem(rawValue: rawUnit)
+        {
             unitSystem = resolvedUnit
         } else {
             unitSystem = .imperial
         }
 
-        notificationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? true
+        notificationsEnabled =
+            try container.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? true
         language = try container.decodeIfPresent(String.self, forKey: .language) ?? "en"
 
         if let rawLevel = try container.decodeIfPresent(String.self, forKey: .foodLoggingLevel),
-           let level = FoodLoggingLevel(rawValue: rawLevel) {
+            let level = FoodLoggingLevel(rawValue: rawLevel)
+        {
             foodLoggingLevel = level
         } else {
             foodLoggingLevel = .beginner
@@ -174,7 +180,10 @@ struct ShoppingList: Codable, Identifiable {
     var createdAt: String?
     var updatedAt: String?
 
-    init(id: String, name: String, userId: Int? = nil, items: [ShoppingItem] = [], createdAt: String? = nil, updatedAt: String? = nil) {
+    init(
+        id: String, name: String, userId: Int? = nil, items: [ShoppingItem] = [],
+        createdAt: String? = nil, updatedAt: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.userId = userId
@@ -226,7 +235,11 @@ struct ShoppingItem: Codable, Identifiable {
     var createdAt: String?
     var updatedAt: String?
 
-    init(id: String, name: String, quantity: String? = nil, unit: String? = nil, list: String? = nil, checked: Bool = false, addedAt: Double? = nil, checkedAt: Double? = nil, shoppingListId: String? = nil, createdAt: String? = nil, updatedAt: String? = nil) {
+    init(
+        id: String, name: String, quantity: String? = nil, unit: String? = nil, list: String? = nil,
+        checked: Bool = false, addedAt: Double? = nil, checkedAt: Double? = nil,
+        shoppingListId: String? = nil, createdAt: String? = nil, updatedAt: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.quantity = quantity
@@ -304,7 +317,10 @@ struct PantryItem: Codable, Identifiable {
         case checked
     }
 
-    init(id: String, name: String, quantity: String? = nil, unit: String? = nil, expiryDate: String? = nil, addedOn: String? = nil, checked: Bool = false) {
+    init(
+        id: String, name: String, quantity: String? = nil, unit: String? = nil,
+        expiryDate: String? = nil, addedOn: String? = nil, checked: Bool = false
+    ) {
         self.id = id
         self.name = name
         self.quantity = quantity
@@ -348,6 +364,7 @@ struct FoodLogItem: Codable, Identifiable {
     var name: String
     var meal: String
     var calories: String?
+    var carbohydrates: String?
     var datetime: String
     var loggingLevel: FoodLoggingLevel
     var portionSize: String?
@@ -388,6 +405,7 @@ struct FoodLogItem: Codable, Identifiable {
         case name
         case meal
         case calories
+        case carbohydrates
         case datetime
         case loggingLevel
         case portionSize
@@ -430,8 +448,12 @@ struct FoodLogItem: Codable, Identifiable {
         name = container.decodeFlexibleOptionalString(forKey: .name) ?? "Meal"
         meal = container.decodeFlexibleOptionalString(forKey: .meal) ?? "meal"
         calories = container.decodeFlexibleOptionalString(forKey: .calories)
-        datetime = container.decodeFlexibleOptionalString(forKey: .datetime) ?? ISO8601DateFormatter().string(from: Date())
-        loggingLevel = (try? container.decode(FoodLoggingLevel.self, forKey: .loggingLevel)) ?? .beginner
+        carbohydrates = container.decodeFlexibleOptionalString(forKey: .carbohydrates)
+        datetime =
+            container.decodeFlexibleOptionalString(forKey: .datetime)
+            ?? ISO8601DateFormatter().string(from: Date())
+        loggingLevel =
+            (try? container.decode(FoodLoggingLevel.self, forKey: .loggingLevel)) ?? .beginner
         portionSize = container.decodeFlexibleOptionalString(forKey: .portionSize)
         mealTime = container.decodeFlexibleOptionalString(forKey: .mealTime)
         mood = container.decodeFlexibleOptionalString(forKey: .mood)
@@ -445,9 +467,11 @@ struct FoodLogItem: Codable, Identifiable {
         physicalEmptiness = container.decodeFlexibleOptionalString(forKey: .physicalEmptiness)
         couldEatMore = container.decodeFlexibleOptionalString(forKey: .couldEatMore)
         stomachSensations = container.decodeFlexibleOptionalString(forKey: .stomachSensations)
-        chestThroatSensations = container.decodeFlexibleOptionalString(forKey: .chestThroatSensations)
+        chestThroatSensations = container.decodeFlexibleOptionalString(
+            forKey: .chestThroatSensations)
         headSensations = container.decodeFlexibleOptionalString(forKey: .headSensations)
-        overallBodySensations = container.decodeFlexibleOptionalString(forKey: .overallBodySensations)
+        overallBodySensations = container.decodeFlexibleOptionalString(
+            forKey: .overallBodySensations)
         muscleTone = container.decodeFlexibleOptionalString(forKey: .muscleTone)
         energyLevel = container.decodeFlexibleOptionalString(forKey: .energyLevel)
         breathingChanges = container.decodeFlexibleOptionalString(forKey: .breathingChanges)
@@ -472,6 +496,7 @@ struct FoodLogItem: Codable, Identifiable {
         try container.encode(name, forKey: .name)
         try container.encode(meal, forKey: .meal)
         try container.encodeIfPresent(calories, forKey: .calories)
+        try container.encodeIfPresent(carbohydrates, forKey: .carbohydrates)
         try container.encode(datetime, forKey: .datetime)
         try container.encode(loggingLevel, forKey: .loggingLevel)
         try container.encodeIfPresent(portionSize, forKey: .portionSize)
@@ -509,10 +534,71 @@ struct FoodLogItem: Codable, Identifiable {
     }
 }
 
+struct FoodLogIngredient: Codable, Identifiable, Hashable {
+    let id: String
+    let barcode: String?
+    let itemName: String
+    let quantity: String?
+    let unit: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case barcode
+        case itemName
+        case name
+        case quantity
+        case unit
+    }
+
+    init(
+        id: String, barcode: String? = nil, itemName: String, quantity: String? = nil,
+        unit: String? = nil
+    ) {
+        self.id = id
+        self.barcode = barcode
+        self.itemName = itemName
+        self.quantity = quantity
+        self.unit = unit
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let idValue = try? container.decodeFlexibleString(forKey: .id) {
+            id = idValue
+        } else {
+            id = UUID().uuidString
+        }
+        barcode = container.decodeFlexibleOptionalString(forKey: .barcode)
+        itemName =
+            container.decodeFlexibleOptionalString(forKey: .itemName)
+            ?? container.decodeFlexibleOptionalString(forKey: .name)
+            ?? "Ingredient"
+        quantity = container.decodeFlexibleOptionalString(forKey: .quantity)
+        unit = container.decodeFlexibleOptionalString(forKey: .unit)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(barcode, forKey: .barcode)
+        try container.encode(itemName, forKey: .itemName)
+        try container.encodeIfPresent(quantity, forKey: .quantity)
+        try container.encodeIfPresent(unit, forKey: .unit)
+    }
+}
+
+struct FoodLogIngredientCreateRequest: Codable, Hashable {
+    var barcode: Int64?
+    var itemName: String
+    var quantity: String?
+    var unit: String?
+}
+
 struct FoodLogCreateRequest: Codable {
     var name: String
     var meal: String
     var calories: String?
+    var carbohydrates: String?
     var datetime: String
     var loggingLevel: FoodLoggingLevel
     var portionSize: String?
@@ -572,6 +658,7 @@ extension FoodLogItem {
         self.name = request.name
         self.meal = request.meal
         self.calories = request.calories
+        self.carbohydrates = request.carbohydrates
         self.datetime = request.datetime
         self.loggingLevel = request.loggingLevel
         self.portionSize = request.portionSize
@@ -623,20 +710,23 @@ struct WorkoutLogItem: Codable, Identifiable {
     var updatedAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, activity, category, duration, calories, parameters, datetime, userId, createdAt, updatedAt
+        case id, name, activity, category, duration, calories, parameters, datetime, userId,
+            createdAt, updatedAt
     }
 
-    init(id: String = UUID().uuidString,
-         name: String,
-         activity: String,
-         category: String,
-         duration: String,
-         calories: String? = nil,
-         parameters: [String: AnyCodableValue] = [:],
-         datetime: String,
-         userId: Int? = nil,
-         createdAt: String? = nil,
-         updatedAt: String? = nil) {
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        activity: String,
+        category: String,
+        duration: String,
+        calories: String? = nil,
+        parameters: [String: AnyCodableValue] = [:],
+        datetime: String,
+        userId: Int? = nil,
+        createdAt: String? = nil,
+        updatedAt: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.activity = activity
@@ -657,10 +747,19 @@ enum AnyCodableValue: Codable {
     case int(Int)
     case double(Double)
     case bool(Bool)
-    
+    case object([String: AnyCodableValue])
+    case array([AnyCodableValue])
+    case null
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if let string = try? container.decode(String.self) {
+        if container.decodeNil() {
+            self = .null
+        } else if let object = try? container.decode([String: AnyCodableValue].self) {
+            self = .object(object)
+        } else if let array = try? container.decode([AnyCodableValue].self) {
+            self = .array(array)
+        } else if let string = try? container.decode(String.self) {
             self = .string(string)
         } else if let int = try? container.decode(Int.self) {
             self = .int(int)
@@ -669,10 +768,10 @@ enum AnyCodableValue: Codable {
         } else if let bool = try? container.decode(Bool.self) {
             self = .bool(bool)
         } else {
-            self = .string("")
+            self = .null
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
@@ -680,15 +779,44 @@ enum AnyCodableValue: Codable {
         case .int(let value): try container.encode(value)
         case .double(let value): try container.encode(value)
         case .bool(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .null: try container.encodeNil()
         }
     }
-    
+
     var stringValue: String {
         switch self {
         case .string(let value): return value
         case .int(let value): return String(value)
         case .double(let value): return String(value)
         case .bool(let value): return String(value)
+        case .object, .array, .null:
+            if let data = try? JSONSerialization.data(withJSONObject: jsonValue, options: []),
+                let string = String(data: data, encoding: .utf8)
+            {
+                return string
+            }
+            return ""
+        }
+    }
+
+    var jsonValue: Any {
+        switch self {
+        case .string(let value):
+            return value
+        case .int(let value):
+            return value
+        case .double(let value):
+            return value
+        case .bool(let value):
+            return value
+        case .object(let value):
+            return value.mapValues { $0.jsonValue }
+        case .array(let value):
+            return value.map { $0.jsonValue }
+        case .null:
+            return NSNull()
         }
     }
 }
@@ -714,15 +842,17 @@ struct CustomMetric: Codable, Identifiable {
     var createdAt: String?
     var updatedAt: String?
 
-    init(id: String = UUID().uuidString,
-         name: String,
-         value: String,
-         unit: String,
-         date: String,
-         metricType: String,
-         userId: Int? = nil,
-         createdAt: String? = nil,
-         updatedAt: String? = nil) {
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        value: String,
+        unit: String,
+        date: String,
+        metricType: String,
+        userId: Int? = nil,
+        createdAt: String? = nil,
+        updatedAt: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.value = value
@@ -751,7 +881,10 @@ struct ShoppingRecommendation: Codable, Identifiable {
         case context
     }
 
-    init(id: String, title: String, description: String, intent: String? = nil, metadata: [String: String]? = nil, context: [String: String]? = nil) {
+    init(
+        id: String, title: String, description: String, intent: String? = nil,
+        metadata: [String: String]? = nil, context: [String: String]? = nil
+    ) {
         self.id = id
         self.title = title
         self.description = description
@@ -806,7 +939,10 @@ struct Goal: Codable, Identifiable {
         case updatedAt
     }
 
-    init(id: String, description: String, title: String? = nil, source: String? = nil, spec: [String: String]? = nil, createdAt: String? = nil, updatedAt: String? = nil) {
+    init(
+        id: String, description: String, title: String? = nil, source: String? = nil,
+        spec: [String: String]? = nil, createdAt: String? = nil, updatedAt: String? = nil
+    ) {
         self.id = id
         self.description = description
         self.title = title
@@ -843,7 +979,10 @@ struct GoalRecommendation: Codable, Identifiable {
         case usageCount
     }
 
-    init(id: String? = nil, title: String? = nil, description: String, intent: String? = nil, usageCount: Int? = nil) {
+    init(
+        id: String? = nil, title: String? = nil, description: String, intent: String? = nil,
+        usageCount: Int? = nil
+    ) {
         self.id = id ?? (title ?? description)
         self.title = title
         self.description = description
@@ -855,13 +994,14 @@ struct GoalRecommendation: Codable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         let decodedTitle = try container.decodeIfPresent(String.self, forKey: .title)
-        let decodedDescription = try container.decodeIfPresent(String.self, forKey: .description)
+        let decodedDescription =
+            try container.decodeIfPresent(String.self, forKey: .description)
             ?? decodedTitle
             ?? ""
         let decodedId = try container.decodeIfPresent(String.self, forKey: .id)
         let decodedIntent = try container.decodeIfPresent(String.self, forKey: .intent)
         let decodedUsageCount = try container.decodeIfPresent(Int.self, forKey: .usageCount)
-        
+
         // Ensure id is always set - use UUID if nothing else is available
         if let id = decodedId, !id.isEmpty {
             self.id = id
@@ -873,7 +1013,7 @@ struct GoalRecommendation: Codable, Identifiable {
             // Last resort: use UUID
             self.id = UUID().uuidString
         }
-        
+
         self.title = decodedTitle
         self.description = decodedDescription
         self.intent = decodedIntent
@@ -894,6 +1034,60 @@ struct GoalResponse: Codable {
 
 struct GoalRecommendationsResponse: Codable {
     let goals: [GoalRecommendation]?
+}
+
+struct OnboardingChatRequest: Codable {
+    let conversationId: String?
+    let message: String
+}
+
+struct OnboardingChatResponse: Codable {
+    let conversationId: String
+    let message: String
+}
+
+struct GamePlan: Codable, Identifiable {
+    let id: String
+    let userId: Int
+    let conversationId: String?
+    let internalPlan: GamePlanInternal?
+    let external: String
+    let internalVersion: String
+    let externalVersion: String
+    let revision: Int
+    let status: String
+    let createdAt: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId
+        case conversationId
+        case internalPlan = "internal"
+        case external
+        case internalVersion
+        case externalVersion
+        case revision
+        case status
+        case createdAt
+        case updatedAt
+    }
+}
+
+struct GamePlanInternal: Codable {
+    let schemaVersion: String?
+    let workout: [String: AnyCodableValue]?
+    let food: [String: AnyCodableValue]?
+    let shopping: [String: AnyCodableValue]?
+    let other: [String: AnyCodableValue]?
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case workout
+        case food
+        case shopping
+        case other
+    }
 }
 
 // Helper to decode numbers or strings for macros
@@ -924,8 +1118,8 @@ enum DoubleOrString: Codable {
     var asString: String? { if case .string(let s) = self { return s } else { return nil } }
 }
 
-private extension KeyedDecodingContainer {
-    func decodeFlexibleString(forKey key: Key) throws -> String {
+extension KeyedDecodingContainer {
+    fileprivate func decodeFlexibleString(forKey key: Key) throws -> String {
         if let stringValue = try? decode(String.self, forKey: key) {
             return stringValue
         }
@@ -935,10 +1129,14 @@ private extension KeyedDecodingContainer {
         if let doubleValue = try? decode(Double.self, forKey: key) {
             return String(doubleValue)
         }
-        throw DecodingError.typeMismatch(String.self, DecodingError.Context(codingPath: codingPath + [key], debugDescription: "Expected String-compatible value"))
+        throw DecodingError.typeMismatch(
+            String.self,
+            DecodingError.Context(
+                codingPath: codingPath + [key], debugDescription: "Expected String-compatible value"
+            ))
     }
 
-    func decodeFlexibleOptionalString(forKey key: Key) -> String? {
+    fileprivate func decodeFlexibleOptionalString(forKey key: Key) -> String? {
         if let stringValue = try? decode(String.self, forKey: key) {
             return stringValue
         }
@@ -951,11 +1149,13 @@ private extension KeyedDecodingContainer {
         return nil
     }
 
-    func decodeFlexibleDouble(forKey key: Key) -> Double? {
+    fileprivate func decodeFlexibleDouble(forKey key: Key) -> Double? {
         if let doubleValue = try? decode(Double.self, forKey: key) {
             return doubleValue
         }
-        if let stringValue = try? decode(String.self, forKey: key), let doubleValue = Double(stringValue) {
+        if let stringValue = try? decode(String.self, forKey: key),
+            let doubleValue = Double(stringValue)
+        {
             return doubleValue
         }
         if let intValue = try? decode(Int.self, forKey: key) {
@@ -964,7 +1164,7 @@ private extension KeyedDecodingContainer {
         return nil
     }
 
-    func decodeFlexibleBool(forKey key: Key) -> Bool? {
+    fileprivate func decodeFlexibleBool(forKey key: Key) -> Bool? {
         if let boolValue = try? decode(Bool.self, forKey: key) {
             return boolValue
         }
@@ -975,5 +1175,47 @@ private extension KeyedDecodingContainer {
             return (stringValue as NSString).boolValue
         }
         return nil
+    }
+}
+
+struct ReceiptScanResult: Identifiable, Decodable, Equatable {
+    let id: UUID
+    let store: String
+    let dateOnReceipt: String?
+    let processingDate: String
+    let items: [ReceiptScanItem]
+
+    private enum CodingKeys: String, CodingKey {
+        case store
+        case dateOnReceipt = "date_on_receipt"
+        case processingDate = "processing_date"
+        case items
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = UUID()
+        store = try container.decode(String.self, forKey: .store)
+        dateOnReceipt = try container.decodeIfPresent(String.self, forKey: .dateOnReceipt)
+        processingDate = try container.decode(String.self, forKey: .processingDate)
+        items = try container.decode([ReceiptScanItem].self, forKey: .items)
+    }
+}
+
+struct ReceiptScanItem: Identifiable, Decodable, Equatable {
+    let id: UUID
+    let name: String
+    var estimatedName: String
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case estimatedName = "estimated_name"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = UUID()
+        name = try container.decode(String.self, forKey: .name)
+        estimatedName = try container.decode(String.self, forKey: .estimatedName)
     }
 }

@@ -25,10 +25,12 @@ enum TodaysProgressDestination: Identifiable, Hashable {
 
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
+    @EnvironmentObject private var toastService: ToastService
     @Environment(\.colorScheme) private var colorScheme
     @State private var todaysProgressDestination: TodaysProgressDestination?
     @State private var isHeaderCompact = false
-    private let gamePlanContent = GamePlanLoader.load()
+    @State private var selectedAchievement: Achievement?
+    @State private var showAllAchievements = false
 
     private let workoutGoalMinutes: Double = 45
     private let macroTargets = MacroTargets(calories: 2000, carbs: 240, protein: 120, fat: 70)
@@ -65,7 +67,7 @@ struct DashboardView: View {
                         Label("Today's Progress", systemImage: "chart.bar.doc.horizontal")
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        TodaysProgressCarousel(
+                        TodaysProgressStack(
                             workoutSummary: workoutSummary,
                             foodSummary: foodLogSummary,
                             onWorkoutTap: { todaysProgressDestination = .workouts },
@@ -82,26 +84,28 @@ struct DashboardView: View {
                         SuggestedReadsSection(articles: featuredArticles)
                     }
 
-                    GoalsView<AnyView, AnyView>(
-                        gamePlanView: { onReadMore in
-                            guard let content = gamePlanContent else {
-                                return AnyView(EmptyView())
-                            }
-                            return AnyView(
-                                GamePlanView(
-                                    previewMarkdown: content.previewMarkdown,
-                                    onReadMore: onReadMore
-                                )
-                            )
-                        },
-                        expandedGamePlanView: {
-                            guard let content = gamePlanContent else {
-                                return AnyView(EmptyView())
-                            }
-                            return AnyView(ExpandedGamePlanView(markdown: content.markdown))
-                        },
-                        hasGamePlanContent: gamePlanContent != nil
-                    )
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Label("Goals and Achievements", systemImage: "flag.checkered")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                        }
+
+                        // GoalsView(showHeader: false)
+
+                        AchievementsOverviewView(
+                            achievements: achievementsForDisplay,
+                            onSelect: { achievement in
+                                selectedAchievement = achievement
+                            },
+                            onViewAll: {
+                                showAllAchievements = true
+                            },
+                            maxVisible: 4
+                        )
+                    }
+
+                    GamePlanSectionView()
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 24)
@@ -144,6 +148,15 @@ struct DashboardView: View {
                     CustomMetricsView(embedsInNavigationStack: false)
                 }
             }
+            .navigationDestination(item: $selectedAchievement) { achievement in
+                AllGoalsAndAchievementsView(
+                    achievements: achievementsForDisplay,
+                    selectedAchievement: achievement
+                )
+            }
+            .navigationDestination(isPresented: $showAllAchievements) {
+                AllGoalsAndAchievementsView(achievements: achievementsForDisplay)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
@@ -163,6 +176,18 @@ struct DashboardView: View {
             }
         }
         .glassNavigationBarStyle()
+        .task {
+            ensureHighlightedWorkoutSuggestion()
+            await app.refreshLatestGamePlan()
+        }
+        .onChange(of: app.workoutRecommendations.map(\.id)) { _, _ in
+            ensureHighlightedWorkoutSuggestion()
+        }
+        .onChange(of: app.gamePlanUpdateNotice) { _, newValue in
+            guard newValue else { return }
+            toastService.show("Game Plan has been updated")
+            app.consumeGamePlanUpdateNotice()
+        }
     }
 }
 
@@ -215,30 +240,33 @@ extension DashboardView {
             state = .partiallyCompleted
         }
 
-        let durationText: String
-        if totalMinutes >= 60 {
-            durationText = String(format: "%.1fh", totalMinutes / 60)
-        } else {
-            durationText = "\(Int(totalMinutes))min"
-        }
+        let remainingMinutes = max(workoutGoalMinutes - totalMinutes, 0)
+        let remainingText = formatMinutesText(remainingMinutes, roundUp: true)
+        let doneText = formatMinutesText(totalMinutes, roundUp: false)
 
-        let subtitleText: String
-        switch state {
-        case .completed:
-            subtitleText = "Well done, rest well"
-        case .partiallyCompleted:
-            let remaining = max(workoutGoalMinutes - totalMinutes, 0)
-            subtitleText = "\(Int(ceil(remaining))) minutes more"
-        case .notStarted:
-            subtitleText = "Start your workout"
-        }
+        let workoutRecommendation = app.highlightedWorkoutSuggestion.trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        let workoutRecommendationIcon =
+            workoutRecommendation.isEmpty
+            ? ""
+            : WorkoutSuggestionIconProvider.systemImageName(
+                for: workoutRecommendation,
+                quickPicks: WorkoutQuickPickDefinition.defaultQuickPicks,
+                recommendations: app.workoutRecommendations
+            )
 
         return WorkoutSummary(
-            durationText: durationText,
-            subtitleText: subtitleText,
+            remainingText: remainingText,
+            doneText: doneText,
+            recommendationHighlight: workoutRecommendation,
+            recommendationIconName: workoutRecommendationIcon,
             progress: progress,
             state: state
         )
+    }
+
+    fileprivate var achievementsForDisplay: [Achievement] {
+        Achievement.sortedForDisplay(Achievement.sample)
     }
 
     fileprivate var foodLogSummary: FoodLogSummary {
@@ -246,14 +274,24 @@ extension DashboardView {
         let totalCalories = todayItems.reduce(0.0) { $0 + parseDouble($1.calories) }
         let protein = todayItems.reduce(0.0) { $0 + parseDouble($1.protein) }
         let fat = todayItems.reduce(0.0) { $0 + parseDouble($1.fat) }
-
-        // Estimate carbs from remaining calories if explicit value is missing.
-        let carbCalories = max(totalCalories - (protein * 4 + fat * 9), 0)
-        let carbs = carbCalories / 4
+        let carbohydrates = todayItems.reduce(0.0) { total, item in
+            let explicitCarbs = parseDouble(item.carbohydrates)
+            if explicitCarbs > 0 {
+                return total + explicitCarbs
+            }
+            let itemCalories = parseDouble(item.calories)
+            let itemProtein = parseDouble(item.protein)
+            let itemFat = parseDouble(item.fat)
+            let carbCalories = max(itemCalories - (itemProtein * 4 + itemFat * 9), 0)
+            return total + (carbCalories / 4)
+        }
+        let calorieGoal = max(macroTargets.calories, 0)
+        let caloriesRemaining = max(calorieGoal - totalCalories, 0)
+        let caloriesProgress = calorieGoal > 0 ? min(totalCalories / calorieGoal, 1) : 0
 
         let macros: [MacroRingData] = [
             MacroRingData(
-                label: "Carbs", consumed: carbs, target: macroTargets.carbs, color: .orange),
+                label: "Carbs", consumed: carbohydrates, target: macroTargets.carbs, color: .orange),
             MacroRingData(
                 label: "Protein", consumed: protein, target: macroTargets.protein, color: .purple),
             MacroRingData(label: "Fat", consumed: fat, target: macroTargets.fat, color: .pink),
@@ -294,11 +332,41 @@ extension DashboardView {
 
         return FoodLogSummary(
             calories: Int(totalCalories.rounded()),
+            caloriesRemaining: Int(caloriesRemaining.rounded()),
+            calorieGoal: Int(calorieGoal.rounded()),
+            progress: caloriesProgress,
             macros: macros,
             recommendation: recommendation,
             mealsCount: todayItems.count,
             todayItems: todayItems
         )
+    }
+
+    fileprivate var workoutSuggestionTitles: [String] {
+        let quickPickTitles = WorkoutQuickPickDefinition.defaultQuickPicks.map(\.label)
+        let recommendationTitles = app.workoutRecommendations.compactMap { recommendation in
+            recommendation.quickPickDefinition?.label ?? recommendation.title
+        }
+        return quickPickTitles + recommendationTitles
+    }
+
+    fileprivate func ensureHighlightedWorkoutSuggestion() {
+        let titles = workoutSuggestionTitles
+        guard !titles.isEmpty else {
+            app.highlightedWorkoutSuggestion = ""
+            return
+        }
+        if !titles.contains(app.highlightedWorkoutSuggestion) {
+            app.highlightedWorkoutSuggestion = titles.randomElement() ?? ""
+        }
+    }
+
+    fileprivate func formatMinutesText(_ minutes: Double, roundUp: Bool) -> String {
+        let adjusted = roundUp ? ceil(minutes) : minutes
+        if adjusted >= 60 {
+            return String(format: "%.1fh", adjusted / 60)
+        }
+        return "\(Int(adjusted))min"
     }
 
     fileprivate func parseDurationMinutes(from text: String) -> Double {
@@ -366,14 +434,19 @@ struct DashboardCard<Content: View>: View {
 }
 
 struct WorkoutSummary {
-    let durationText: String
-    let subtitleText: String
+    let remainingText: String
+    let doneText: String
+    let recommendationHighlight: String
+    let recommendationIconName: String
     let progress: Double
     let state: WorkoutState
 }
 
 struct FoodLogSummary {
     let calories: Int
+    let caloriesRemaining: Int
+    let calorieGoal: Int
+    let progress: Double
     let macros: [MacroRingData]
     let recommendation: String
     let mealsCount: Int
@@ -437,7 +510,7 @@ extension WorkoutState {
     }
 }
 
-struct TodaysProgressCarousel: View {
+struct TodaysProgressStack: View {
     let workoutSummary: WorkoutSummary
     let foodSummary: FoodLogSummary
     let onWorkoutTap: (() -> Void)?
@@ -459,10 +532,12 @@ struct TodaysProgressCarousel: View {
     }
 
     var body: some View {
-        TabView {
+        VStack(spacing: 12) {
             WorkoutCardView(
-                durationText: workoutSummary.durationText,
-                subtitleText: workoutSummary.subtitleText,
+                remainingText: workoutSummary.remainingText,
+                doneText: workoutSummary.doneText,
+                recommendationHighlight: workoutSummary.recommendationHighlight,
+                recommendationIconName: workoutSummary.recommendationIconName,
                 progress: workoutSummary.progress,
                 state: workoutSummary.state,
                 onTap: onWorkoutTap
@@ -473,9 +548,6 @@ struct TodaysProgressCarousel: View {
             )
             SleepCardView(onTap: onSleepTap)
         }
-        .frame(height: 190)
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-        .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
     }
 }
 

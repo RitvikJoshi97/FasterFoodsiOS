@@ -3,6 +3,23 @@ import Foundation
 import GoogleSignIn
 import SwiftUI
 
+enum GamePlanStatus: Equatable {
+    case idle
+    case loading
+    case preparing
+    case ready
+    case failed(String)
+
+    var isPreparing: Bool {
+        switch self {
+        case .preparing, .loading:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 @MainActor
 class AppState: ObservableObject {
     @Published var isAuthenticated: Bool = false
@@ -20,17 +37,40 @@ class AppState: ObservableObject {
     @Published var foodLogRecommendations: [ShoppingRecommendation] = []
     @Published var workoutItems: [WorkoutLogItem] = []
     @Published var workoutRecommendations: [ShoppingRecommendation] = []
+    @Published var highlightedWorkoutSuggestion: String = ""
     @Published var customMetrics: [CustomMetric] = []
     @Published var customMetricRecommendations: [ShoppingRecommendation] = []
+    @Published var latestGamePlan: GamePlan?
+    @Published var gamePlanContent: GamePlanContent?
+    @Published var gamePlanStatus: GamePlanStatus = .idle
+    @Published var gamePlanUpdateNotice = false
     @Published var foodLoggingLevel: FoodLoggingLevel = .beginner
     @Published var isOffline: Bool = false
+    @Published var showAssistant: Bool = false
+    @Published var assistantScript: AssistantScript = .onboarding()
+    @Published var assistantTitle: String = "Assistant"
+    @Published var assistantMode: AssistantMode = .assistant
+    private let onboardingChatKey = "hasSeenOnboardingChat"
+    private let onboardingNextLaunchKey = "showOnboardingNextLaunch"
+    private let localSettingsKey = "localUserSettings"
+    private var hasSeenOnboardingChat: Bool {
+        get { UserDefaults.standard.bool(forKey: onboardingChatKey) }
+        set { UserDefaults.standard.set(newValue, forKey: onboardingChatKey) }
+    }
+    private var showOnboardingNextLaunch: Bool {
+        get { UserDefaults.standard.bool(forKey: onboardingNextLaunchKey) }
+        set { UserDefaults.standard.set(newValue, forKey: onboardingNextLaunchKey) }
+    }
+    private var deferOnboardingThisSession = false
     private let credentialStore = CredentialStore()
     private let foodLoggingLevelKey = "foodLoggingLevel"
+    private let cachedGamePlanKey = "cachedGamePlanExternal"
     private let cacheWindowDays = 14
     private let cache = LocalCache.shared
     private let outbox = OfflineOutbox.shared
     private let networkMonitor = NetworkMonitor.shared
     private var isSyncingOutbox = false
+    private var gamePlanPollTask: Task<Void, Never>?
     private static let isoFormatterFractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -60,7 +100,11 @@ class AppState: ObservableObject {
             let level = FoodLoggingLevel(rawValue: savedLevel)
         {
             foodLoggingLevel = level
+        } else if let localSettings = loadLocalSettings() {
+            settings = localSettings
+            updateFoodLoggingLevel(localSettings.foodLoggingLevel)
         }
+        loadCachedGamePlan()
         isOffline = !networkMonitor.isConnected
         networkMonitor.onStatusChange = { [weak self] connected in
             Task { @MainActor in
@@ -73,9 +117,20 @@ class AppState: ObservableObject {
         Task { await bootstrap() }
     }
 
+    private func loadLocalSettings() -> UserSettings? {
+        guard let data = UserDefaults.standard.data(forKey: localSettingsKey) else { return nil }
+        return try? JSONDecoder().decode(UserSettings.self, from: data)
+    }
+
     private func applySettings(_ incoming: UserSettings) {
         settings = incoming
-        updateFoodLoggingLevel(incoming.foodLoggingLevel)
+        if let localSettings = loadLocalSettings(),
+            localSettings.foodLoggingLevel != incoming.foodLoggingLevel
+        {
+            updateFoodLoggingLevel(localSettings.foodLoggingLevel)
+        } else {
+            updateFoodLoggingLevel(incoming.foodLoggingLevel)
+        }
     }
 
     private func shouldPreserveOnError(_ error: Error) -> Bool {
@@ -141,7 +196,13 @@ class AppState: ObservableObject {
         guard let snapshot = await cache.loadSnapshot() else { return }
         currentUser = snapshot.user ?? currentUser
         if let cachedSettings = snapshot.settings {
-            applySettings(cachedSettings)
+            settings = cachedSettings
+            updateFoodLoggingLevel(cachedSettings.foodLoggingLevel)
+        }
+        if let localSettings = loadLocalSettings(),
+            localSettings.foodLoggingLevel != foodLoggingLevel
+        {
+            updateFoodLoggingLevel(localSettings.foodLoggingLevel)
         }
         pantryItems = snapshot.pantryItems
         shoppingLists = snapshot.shoppingLists
@@ -662,6 +723,7 @@ class AppState: ObservableObject {
         isAuthenticated = true
         credentialStore.save(email: email, password: password)
         await refreshAll()
+        presentOnboardingIfNeeded()
     }
 
     func loginWithApple(
@@ -695,6 +757,7 @@ class AppState: ObservableObject {
         // Store Apple user identifier for future authentication
         credentialStore.saveAppleCredentials(userIdentifier: userIdentifier, email: email)
         await refreshAll()
+        presentOnboardingIfNeeded()
     }
 
     func loginWithGoogle(
@@ -726,6 +789,7 @@ class AppState: ObservableObject {
         // Store Google user ID for future authentication
         credentialStore.saveGoogleCredentials(userID: userID, email: email)
         await refreshAll()
+        presentOnboardingIfNeeded()
     }
 
     func register(email: String, password: String, firstName: String, lastName: String) async throws
@@ -767,9 +831,160 @@ class AppState: ObservableObject {
         workoutRecommendations = []
         customMetrics = []
         customMetricRecommendations = []
+        latestGamePlan = nil
+        gamePlanContent = nil
+        gamePlanStatus = .idle
+        gamePlanUpdateNotice = false
+        cachedGamePlanExternal = nil
         credentialStore.clear()
         updateFoodLoggingLevel(.beginner)
+        showAssistant = false
+        assistantMode = .assistant
+        gamePlanPollTask?.cancel()
         await cache.clear()
+    }
+
+    func presentOnboardingIfNeeded() {
+        guard isAuthenticated, !deferOnboardingThisSession else { return }
+        if case .idle = gamePlanStatus { return }
+        if case .loading = gamePlanStatus { return }
+        let hasStoredGamePlan: Bool = {
+            if let cached = cachedGamePlanExternal?.trimmingCharacters(in: .whitespacesAndNewlines),
+                !cached.isEmpty
+            {
+                return true
+            }
+            return gamePlanContent != nil || latestGamePlan != nil
+        }()
+        let isDevOverride = showOnboardingNextLaunch && currentUser?.role == "ADMIN"
+        guard !hasStoredGamePlan || isDevOverride else { return }
+        let shouldShow = !hasSeenOnboardingChat || isDevOverride
+        guard shouldShow else { return }
+        showOnboardingNextLaunch = false
+        assistantMode = .onboarding
+        assistantTitle = "Welcome to FasterFoods"
+        assistantScript = .empty()
+        showAssistant = true
+    }
+
+    func presentAssistant(title: String, script: AssistantScript) {
+        assistantMode = .assistant
+        assistantTitle = title
+        assistantScript = script
+        showAssistant = true
+    }
+
+    func markOnboardingComplete() {
+        hasSeenOnboardingChat = true
+    }
+
+    func onboardingNextLaunchEnabled() -> Bool {
+        showOnboardingNextLaunch
+    }
+
+    func setOnboardingNextLaunchEnabled(_ enabled: Bool) {
+        showOnboardingNextLaunch = enabled
+        if enabled {
+            hasSeenOnboardingChat = false
+            deferOnboardingThisSession = true
+        }
+    }
+
+    func consumeGamePlanUpdateNotice() {
+        gamePlanUpdateNotice = false
+    }
+
+    func refreshLatestGamePlan(force: Bool = false) async {
+        if isOffline {
+            if gamePlanContent == nil {
+                gamePlanStatus = .failed("No internet connection.")
+            }
+            return
+        }
+        if gamePlanStatus == .loading && !force { return }
+        gamePlanStatus = .loading
+        do {
+            let plan = try await APIClient.shared.getLatestGamePlan()
+            let trimmedExternal = plan.external.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let cached = cachedGamePlanExternal?.trimmingCharacters(in: .whitespacesAndNewlines),
+                !cached.isEmpty,
+                cached != trimmedExternal
+            {
+                gamePlanUpdateNotice = true
+            }
+            cachedGamePlanExternal = trimmedExternal.isEmpty ? nil : trimmedExternal
+            latestGamePlan = plan
+            gamePlanContent = GamePlanContent.from(markdown: plan.external)
+            gamePlanStatus = .ready
+            markNetworkSuccess()
+        } catch let apiError as APIError where apiError.statusCode == 404 {
+            latestGamePlan = nil
+            gamePlanContent = nil
+            gamePlanStatus = .preparing
+            cachedGamePlanExternal = nil
+        } catch {
+            if shouldPreserveOnError(error) {
+                markNetworkFailureIfNeeded(error)
+                if latestGamePlan == nil {
+                    gamePlanStatus = .failed(
+                        (error as? APIError)?.message ?? "Unable to load game plan."
+                    )
+                } else {
+                    gamePlanStatus = .ready
+                }
+                return
+            }
+            latestGamePlan = nil
+            gamePlanContent = nil
+            gamePlanStatus = .failed(
+                (error as? APIError)?.message ?? "Unable to load game plan."
+            )
+        }
+    }
+
+    func beginGamePlanPolling() {
+        gamePlanPollTask?.cancel()
+        gamePlanPollTask = Task { [weak self] in
+            await self?.pollForLatestGamePlan()
+        }
+    }
+
+    private func pollForLatestGamePlan(
+        maxAttempts: Int = 6,
+        initialDelaySeconds: Double = 2,
+        maxDelaySeconds: Double = 15
+    ) async {
+        var delay = initialDelaySeconds
+        for _ in 0..<maxAttempts {
+            if Task.isCancelled { return }
+            if isOffline { return }
+            await refreshLatestGamePlan(force: true)
+            if gamePlanStatus == .ready {
+                return
+            }
+            let sleepNanos = UInt64(delay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: sleepNanos)
+            delay = min(delay * 2, maxDelaySeconds)
+        }
+    }
+
+    private var cachedGamePlanExternal: String? {
+        get { SharedContainer.userDefaults.string(forKey: cachedGamePlanKey) }
+        set {
+            if let value = newValue, !value.isEmpty {
+                SharedContainer.userDefaults.set(value, forKey: cachedGamePlanKey)
+            } else {
+                SharedContainer.userDefaults.removeObject(forKey: cachedGamePlanKey)
+            }
+        }
+    }
+
+    private func loadCachedGamePlan() {
+        guard let cached = cachedGamePlanExternal, !cached.isEmpty else { return }
+        if let content = GamePlanContent.from(markdown: cached) {
+            gamePlanContent = content
+            gamePlanStatus = .ready
+        }
     }
 
     func refreshAll() async {
@@ -900,6 +1115,7 @@ class AppState: ObservableObject {
             customMetricRecommendations = []
             markNetworkFailureIfNeeded(error)
         }
+        await refreshLatestGamePlan()
         persistCache()
         if hadSuccess {
             markNetworkSuccess()
@@ -1671,6 +1887,34 @@ class AppState: ObservableObject {
                 )
             }
             return item
+        }
+    }
+
+    func addFoodLogItemIngredients(
+        itemId: String,
+        ingredients: [FoodLogIngredientCreateRequest]
+    ) async throws {
+        guard !ingredients.isEmpty else { return }
+        if isTempId(itemId) || isOffline { return }
+        do {
+            try await APIClient.shared.addFoodLogItemIngredients(
+                itemId: itemId, ingredients: ingredients)
+            markNetworkSuccess()
+        } catch {
+            markNetworkFailureIfNeeded(error)
+            throw error
+        }
+    }
+
+    func getFoodLogItemIngredients(itemId: String) async throws -> [FoodLogIngredient] {
+        if isTempId(itemId) || isOffline { return [] }
+        do {
+            let ingredients = try await APIClient.shared.getFoodLogItemIngredients(itemId: itemId)
+            markNetworkSuccess()
+            return ingredients
+        } catch {
+            markNetworkFailureIfNeeded(error)
+            throw error
         }
     }
 
