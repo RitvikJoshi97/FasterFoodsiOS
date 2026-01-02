@@ -3,6 +3,7 @@ import SwiftUI
 struct ReceiptResultsSheetView: View {
     @EnvironmentObject private var app: AppState
     @EnvironmentObject private var toastService: ToastService
+    @Environment(\.dismiss) private var dismiss
     let result: ReceiptScanResult
     @State private var items: [ReceiptScanItem]
     @State private var isEditing = false
@@ -148,6 +149,7 @@ struct ReceiptResultsSheetView: View {
 
         if addedCount > 0 {
             toastService.show("Added \(addedCount) items")
+            dismiss()
         }
     }
 }

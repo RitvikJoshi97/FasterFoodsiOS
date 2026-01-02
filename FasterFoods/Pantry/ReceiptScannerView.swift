@@ -7,6 +7,7 @@ struct ReceiptScannerView: View {
     @Environment(\.dismiss) private var dismiss
     let onCapture: (ReceiptScanResult) -> Void
     @State private var errorMessage: String?
+    @State private var isProcessing = false
 
     var body: some View {
         NavigationStack {
@@ -16,13 +17,7 @@ struct ReceiptScannerView: View {
                         onCapture: { image in
                             recognizeText(from: image) { text in
                                 print("Receipt OCR:\n\(text)")
-                                guard let result = ReceiptScanResult.mockResult() else {
-                                    errorMessage = "Couldn't read receipt data."
-                                    return
-                                }
-                                print("Receipt JSON:\n\(ReceiptScanResult.mockJSON)")
-                                onCapture(result)
-                                dismiss()
+                                Task { await processOCRText(text) }
                             }
                         },
                         onError: { message in
@@ -59,6 +54,13 @@ struct ReceiptScannerView: View {
                     .background(.thinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding()
+                }
+
+                if isProcessing {
+                    ProgressView("Reading receipt…")
+                        .padding(16)
+                        .background(.thinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             }
             .navigationTitle("Scan Receipt")
@@ -168,6 +170,25 @@ extension ReceiptScannerView {
                     completion("")
                 }
             }
+        }
+    }
+
+    @MainActor
+    fileprivate func processOCRText(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = "No receipt text found."
+            return
+        }
+        errorMessage = nil
+        isProcessing = true
+        defer { isProcessing = false }
+        do {
+            let result = try await APIClient.shared.processReceiptOCR(text: trimmed)
+            onCapture(result)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

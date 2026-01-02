@@ -1177,3 +1177,45 @@ extension KeyedDecodingContainer {
         return nil
     }
 }
+
+struct ReceiptScanResult: Identifiable, Decodable, Equatable {
+    let id: UUID
+    let store: String
+    let dateOnReceipt: String?
+    let processingDate: String
+    let items: [ReceiptScanItem]
+
+    private enum CodingKeys: String, CodingKey {
+        case store
+        case dateOnReceipt = "date_on_receipt"
+        case processingDate = "processing_date"
+        case items
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = UUID()
+        store = try container.decode(String.self, forKey: .store)
+        dateOnReceipt = try container.decodeIfPresent(String.self, forKey: .dateOnReceipt)
+        processingDate = try container.decode(String.self, forKey: .processingDate)
+        items = try container.decode([ReceiptScanItem].self, forKey: .items)
+    }
+}
+
+struct ReceiptScanItem: Identifiable, Decodable, Equatable {
+    let id: UUID
+    let name: String
+    var estimatedName: String
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case estimatedName = "estimated_name"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = UUID()
+        name = try container.decode(String.self, forKey: .name)
+        estimatedName = try container.decode(String.self, forKey: .estimatedName)
+    }
+}

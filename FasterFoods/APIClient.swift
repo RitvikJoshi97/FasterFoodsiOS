@@ -537,6 +537,26 @@ actor APIClient {
         try await sendShoppingRecommendationFeedback(id: id, action: action)
     }
 
+    func processReceiptOCR(text: String) async throws -> ReceiptScanResult {
+        let body = try JSONSerialization.data(withJSONObject: ["ocrText": text])
+        let (data, http) = try await request(
+            "/pantry/receipts/ocr_text", method: "POST", body: body,
+            contentType: "application/json", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+        let decoder = JSONDecoder()
+        if let direct = try? decoder.decode(ReceiptScanResult.self, from: data) {
+            return direct
+        }
+        if let wrapped = try? decoder.decode([String: ReceiptScanResult].self, from: data) {
+            if let receipt = wrapped["receipt"] { return receipt }
+            if let receipt = wrapped["data"] { return receipt }
+            if let first = wrapped.values.first { return first }
+        }
+        throw APIError(
+            statusCode: nil, message: "Unexpected receipt response", unverified: false,
+            isNetworkError: false)
+    }
+
     // MARK: - Food Log
 
     func getFoodLogItems() async throws -> [FoodLogItem] {
