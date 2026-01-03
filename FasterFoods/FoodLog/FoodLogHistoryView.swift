@@ -112,9 +112,23 @@ struct FoodLogHistoryView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let calories = item.calories, !calories.isEmpty {
-                    Text("Calories: \(calories)")
-                        .font(.caption)
+                HStack(spacing: 12) {
+                    if let calories = item.calories, !calories.isEmpty {
+                        Text("Calories: \(calories)")
+                            .font(.caption)
+                    }
+                    if let carbohydrates = item.carbohydrates, !carbohydrates.isEmpty {
+                        Text("C: \(carbohydrates)")
+                            .font(.caption)
+                    }
+                    if let protein = item.protein, !protein.isEmpty {
+                        Text("P: \(protein)")
+                            .font(.caption)
+                    }
+                    if let fat = item.fat, !fat.isEmpty {
+                        Text("F: \(fat)")
+                            .font(.caption)
+                    }
                 }
 
                 if expandedItemIds.contains(item.id) {

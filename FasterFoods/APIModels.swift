@@ -920,47 +920,104 @@ struct ShoppingRecommendationEnvelope: Codable {
 }
 
 // MARK: - Goal Models
+struct GoalMetricRequirement: Codable, Hashable {
+    let table: String?
+    let metrics: [String: Bool]?
+}
+
+struct GoalNormalization: Codable, Hashable {
+    let model: String?
+    let promptVersion: String?
+    let normalizedAt: String?
+}
+
 struct Goal: Codable, Identifiable {
     let id: String
+    let userId: Int?
     let description: String
     let title: String?
+    let percentageCompleted: Double?
+    let metricsRequired: [GoalMetricRequirement]?
+    let formula: String?
+    let formulaSpec: [String: AnyCodableValue]?
+    let targetDate: String?
+    let status: String?
     let source: String?
-    let spec: [String: String]?
+    let spec: [String: AnyCodableValue]?
+    let normalization: GoalNormalization?
     let createdAt: String?
     let updatedAt: String?
+    let originalGoalText: String?
 
     enum CodingKeys: String, CodingKey {
         case id
+        case userId
         case description
         case title
+        case percentageCompleted
+        case metricsRequired
+        case formula
+        case formulaSpec
+        case targetDate
+        case status
         case source
         case spec
+        case normalization
         case createdAt
         case updatedAt
+        case originalGoalText
     }
 
     init(
-        id: String, description: String, title: String? = nil, source: String? = nil,
-        spec: [String: String]? = nil, createdAt: String? = nil, updatedAt: String? = nil
+        id: String, userId: Int? = nil, description: String, title: String? = nil,
+        percentageCompleted: Double? = nil, metricsRequired: [GoalMetricRequirement]? = nil,
+        formula: String? = nil, formulaSpec: [String: AnyCodableValue]? = nil,
+        targetDate: String? = nil, status: String? = nil, source: String? = nil,
+        spec: [String: AnyCodableValue]? = nil, normalization: GoalNormalization? = nil,
+        createdAt: String? = nil, updatedAt: String? = nil, originalGoalText: String? = nil
     ) {
         self.id = id
+        self.userId = userId
         self.description = description
         self.title = title
+        self.percentageCompleted = percentageCompleted
+        self.metricsRequired = metricsRequired
+        self.formula = formula
+        self.formulaSpec = formulaSpec
+        self.targetDate = targetDate
+        self.status = status
         self.source = source
         self.spec = spec
+        self.normalization = normalization
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.originalGoalText = originalGoalText
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decodeFlexibleString(forKey: .id)
+        if let userIdValue = container.decodeFlexibleDouble(forKey: .userId) {
+            self.userId = Int(userIdValue)
+        } else {
+            self.userId = nil
+        }
         self.description = container.decodeFlexibleOptionalString(forKey: .description) ?? ""
         self.title = container.decodeFlexibleOptionalString(forKey: .title)
+        self.percentageCompleted = container.decodeFlexibleDouble(forKey: .percentageCompleted)
+        self.metricsRequired = try? container.decode(
+            [GoalMetricRequirement].self, forKey: .metricsRequired)
+        self.formula = container.decodeFlexibleOptionalString(forKey: .formula)
+        self.formulaSpec = try? container.decode(
+            [String: AnyCodableValue].self, forKey: .formulaSpec)
+        self.targetDate = container.decodeFlexibleOptionalString(forKey: .targetDate)
+        self.status = container.decodeFlexibleOptionalString(forKey: .status)
         self.source = container.decodeFlexibleOptionalString(forKey: .source)
-        self.spec = try? container.decode([String: String].self, forKey: .spec)
+        self.spec = try? container.decode([String: AnyCodableValue].self, forKey: .spec)
+        self.normalization = try? container.decode(GoalNormalization.self, forKey: .normalization)
         self.createdAt = container.decodeFlexibleOptionalString(forKey: .createdAt)
         self.updatedAt = container.decodeFlexibleOptionalString(forKey: .updatedAt)
+        self.originalGoalText = container.decodeFlexibleOptionalString(forKey: .originalGoalText)
     }
 }
 
@@ -1034,6 +1091,52 @@ struct GoalResponse: Codable {
 
 struct GoalRecommendationsResponse: Codable {
     let goals: [GoalRecommendation]?
+}
+
+// MARK: - Achievement Models
+struct AchievementRecord: Codable, Identifiable {
+    let id: String
+    let userId: Int?
+    let goalId: String?
+    let title: String
+    let description: String
+    let percentageCompleted: Double?
+    let achievedAt: String?
+    let createdAt: String?
+    let updatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId
+        case goalId
+        case title
+        case description
+        case percentageCompleted
+        case achievedAt
+        case createdAt
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeFlexibleString(forKey: .id)
+        if let userIdValue = container.decodeFlexibleDouble(forKey: .userId) {
+            self.userId = Int(userIdValue)
+        } else {
+            self.userId = nil
+        }
+        self.goalId = container.decodeFlexibleOptionalString(forKey: .goalId)
+        self.title = container.decodeFlexibleOptionalString(forKey: .title) ?? ""
+        self.description = container.decodeFlexibleOptionalString(forKey: .description) ?? ""
+        self.percentageCompleted = container.decodeFlexibleDouble(forKey: .percentageCompleted)
+        self.achievedAt = container.decodeFlexibleOptionalString(forKey: .achievedAt)
+        self.createdAt = container.decodeFlexibleOptionalString(forKey: .createdAt)
+        self.updatedAt = container.decodeFlexibleOptionalString(forKey: .updatedAt)
+    }
+}
+
+struct AchievementsResponse: Codable {
+    let achievements: [AchievementRecord]?
 }
 
 struct OnboardingChatRequest: Codable {

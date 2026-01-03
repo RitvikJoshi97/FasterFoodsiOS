@@ -31,6 +31,7 @@ struct DashboardView: View {
     @State private var isHeaderCompact = false
     @State private var selectedAchievement: Achievement?
     @State private var showAllAchievements = false
+    @State private var achievements: [Achievement] = []
 
     private let workoutGoalMinutes: Double = 45
     private let macroTargets = MacroTargets(calories: 2000, carbs: 240, protein: 120, fat: 70)
@@ -179,6 +180,7 @@ struct DashboardView: View {
         .task {
             ensureHighlightedWorkoutSuggestion()
             await app.refreshLatestGamePlan()
+            await loadGoalsAndAchievements()
         }
         .onChange(of: app.workoutRecommendations.map(\.id)) { _, _ in
             ensureHighlightedWorkoutSuggestion()
@@ -266,7 +268,7 @@ extension DashboardView {
     }
 
     fileprivate var achievementsForDisplay: [Achievement] {
-        Achievement.sortedForDisplay(Achievement.sample)
+        Achievement.sortedForDisplay(achievements)
     }
 
     fileprivate var foodLogSummary: FoodLogSummary {
@@ -392,6 +394,28 @@ extension DashboardView {
             return date
         }
         return DashboardView.isoFormatter.date(from: isoString)
+    }
+
+    @MainActor
+    private func loadGoalsAndAchievements() async {
+        do {
+            async let goalsTask = APIClient.shared.getGoals(status: "active")
+            async let achievementsTask = APIClient.shared.getAchievements()
+
+            let goals = try await goalsTask
+            let records = try await achievementsTask
+
+            let achievementItems = records.map { Achievement(record: $0) }
+            let achievedGoalIds = Set(records.compactMap { $0.goalId })
+            let goalItems =
+                goals
+                .filter { !achievedGoalIds.contains($0.id) }
+                .map { Achievement(goal: $0) }
+
+            achievements = achievementItems + goalItems
+        } catch {
+            achievements = []
+        }
     }
 
     fileprivate static let isoFormatterWithFractional: ISO8601DateFormatter = {

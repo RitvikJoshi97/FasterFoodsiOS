@@ -149,32 +149,60 @@ struct AddFoodLogItemSheet: View {
                     }
 
                     if app.foodLoggingLevel != .beginner {
-                        TextField("Calories (kcal)", text: $viewModel.calories)
-                            .keyboardType(.numberPad)
-                            .onChange(of: viewModel.calories) { _, newValue in
-                                updateManualMacro(newValue, field: .calories)
-                            }
-                        TextField("Carbohydrates (g)", text: $viewModel.carbohydrates)
-                            .keyboardType(.decimalPad)
-                            .onChange(of: viewModel.carbohydrates) { _, newValue in
-                                updateManualMacro(newValue, field: .carbohydrates)
-                            }
-                        TextField("Protein (g)", text: $viewModel.protein)
-                            .keyboardType(.decimalPad)
-                            .onChange(of: viewModel.protein) { _, newValue in
-                                updateManualMacro(newValue, field: .protein)
-                            }
-                        TextField("Fat (g)", text: $viewModel.fat)
-                            .keyboardType(.decimalPad)
-                            .onChange(of: viewModel.fat) { _, newValue in
-                                updateManualMacro(newValue, field: .fat)
-                            }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Meal focus")
-                                .font(.subheadline)
+                        HStack {
+                            Text("Calories (kcal)")
                                 .foregroundStyle(.secondary)
-                            Picker("Meal focus", selection: $viewModel.mealCategory) {
+                            Spacer()
+                            TextField("0", text: $viewModel.calories)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(minWidth: 80)
+                                .onChange(of: viewModel.calories) { _, newValue in
+                                    updateManualMacro(newValue, field: .calories)
+                                }
+                        }
+                        HStack {
+                            Text("Carbohydrates (g)")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            TextField("0", text: $viewModel.carbohydrates)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(minWidth: 80)
+                                .onChange(of: viewModel.carbohydrates) { _, newValue in
+                                    updateManualMacro(newValue, field: .carbohydrates)
+                                }
+                        }
+                        HStack {
+                            Text("Protein (g)")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            TextField("0", text: $viewModel.protein)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(minWidth: 80)
+                                .onChange(of: viewModel.protein) { _, newValue in
+                                    updateManualMacro(newValue, field: .protein)
+                                }
+                        }
+                        HStack {
+                            Text("Fat (g)")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            TextField("0", text: $viewModel.fat)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(minWidth: 80)
+                                .onChange(of: viewModel.fat) { _, newValue in
+                                    updateManualMacro(newValue, field: .fat)
+                                }
+                        }
+
+                        HStack {
+                            Text("Meal focus")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Picker("", selection: $viewModel.mealCategory) {
                                 ForEach(categoryOptions) { category in
                                     Text(category.rawValue).tag(category)
                                 }
@@ -473,6 +501,7 @@ struct AddFoodLogItemSheet: View {
             manualMacros.carbohydrates = max(entered - scannedTotals.carbohydrates, 0)
         }
         applyMacroTotals(scannedTotals)
+        preserveTrailingDecimalInput(newValue, field: field)
     }
 
     private func recalculateMacros() {
@@ -593,7 +622,29 @@ struct AddFoodLogItemSheet: View {
 
     private func formatMacroValue(_ value: Double, decimals: Int) -> String {
         guard value > 0 else { return "" }
-        return String(format: "%.\(decimals)f", value)
+        var formatted = String(format: "%.\(decimals)f", value)
+        if decimals > 0, formatted.contains(".") {
+            formatted = formatted.trimmingCharacters(in: CharacterSet(charactersIn: "0"))
+            formatted = formatted.hasSuffix(".") ? String(formatted.dropLast()) : formatted
+        }
+        return formatted
+    }
+
+    private func preserveTrailingDecimalInput(_ rawValue: String, field: MacroField) {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasSuffix(".") else { return }
+        isUpdatingMacros = true
+        switch field {
+        case .calories:
+            viewModel.calories = trimmed
+        case .protein:
+            viewModel.protein = trimmed
+        case .fat:
+            viewModel.fat = trimmed
+        case .carbohydrates:
+            viewModel.carbohydrates = trimmed
+        }
+        isUpdatingMacros = false
     }
 
     private func formatQuantityValue(_ value: Double) -> String {

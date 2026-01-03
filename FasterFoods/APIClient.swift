@@ -880,8 +880,14 @@ actor APIClient {
     }
 
     // MARK: - Goals API
-    func getGoals() async throws -> [Goal] {
-        let (data, http) = try await request("/goals", authorized: true)
+    func getGoals(status: String? = "active") async throws -> [Goal] {
+        let path: String
+        if let status, !status.isEmpty {
+            path = "/goals?status=\(status)"
+        } else {
+            path = "/goals"
+        }
+        let (data, http) = try await request(path, authorized: true)
         guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
 
         // Try to decode as array first
@@ -917,6 +923,20 @@ actor APIClient {
         }
 
         throw URLError(.cannotParseResponse)
+    }
+
+    func getAchievements() async throws -> [AchievementRecord] {
+        let (data, http) = try await request("/achievements", authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+
+        let decoder = JSONDecoder()
+        if let direct = try? decoder.decode([AchievementRecord].self, from: data) {
+            return direct
+        }
+        if let response = try? decoder.decode(AchievementsResponse.self, from: data) {
+            return response.achievements ?? []
+        }
+        return []
     }
 
     func getGoalRecommendations() async throws -> [GoalRecommendation] {
