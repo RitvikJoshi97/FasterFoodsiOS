@@ -723,6 +723,7 @@ class AppState: ObservableObject {
         isAuthenticated = true
         credentialStore.save(email: email, password: password)
         await refreshAll()
+        Task { await PushTokenManager.shared.syncIfPossible() }
         presentOnboardingIfNeeded()
     }
 
@@ -757,6 +758,7 @@ class AppState: ObservableObject {
         // Store Apple user identifier for future authentication
         credentialStore.saveAppleCredentials(userIdentifier: userIdentifier, email: email)
         await refreshAll()
+        Task { await PushTokenManager.shared.syncIfPossible() }
         presentOnboardingIfNeeded()
     }
 
@@ -789,6 +791,7 @@ class AppState: ObservableObject {
         // Store Google user ID for future authentication
         credentialStore.saveGoogleCredentials(userID: userID, email: email)
         await refreshAll()
+        Task { await PushTokenManager.shared.syncIfPossible() }
         presentOnboardingIfNeeded()
     }
 

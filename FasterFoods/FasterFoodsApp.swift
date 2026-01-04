@@ -13,6 +13,7 @@ import SwiftUI
 struct FasterFoodsApp: App {
     @StateObject private var app = AppState()
     @StateObject private var toastService = ToastService()
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
         // Configure Google Sign In once at app startup

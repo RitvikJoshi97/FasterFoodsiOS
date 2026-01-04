@@ -228,6 +228,14 @@ actor APIClient {
         return res
     }
 
+    func registerPushToken(_ payload: PushTokenPayload) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let (_, http) = try await request(
+            "/push-tokens", method: "POST", body: body, contentType: "application/json",
+            authorized: true)
+        guard (200..<300).contains(http.statusCode) else { throw URLError(.badServerResponse) }
+    }
+
     func getCurrentUser() async throws -> User {
         let (data, http) = try await request("/user", authorized: true)
         guard (200..<300).contains(http.statusCode) else {
