@@ -1,17 +1,6 @@
 import Foundation
 import UIKit
 
-struct PushTokenPayload: Encodable {
-    let token: String
-    let platform: String
-    let provider: String
-    let deviceId: String
-    let environment: String
-    let appVersion: String
-    let locale: String
-    let timeZone: String
-}
-
 actor PushTokenManager {
     static let shared = PushTokenManager()
 

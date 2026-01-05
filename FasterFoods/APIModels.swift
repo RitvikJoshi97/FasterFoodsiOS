@@ -10,6 +10,17 @@ struct User: Codable, Identifiable {
     let avatarUrl: String?
 }
 
+struct PushTokenPayload: Encodable {
+    let token: String
+    let platform: String
+    let provider: String
+    let deviceId: String
+    let environment: String
+    let appVersion: String
+    let locale: String
+    let timeZone: String
+}
+
 enum ThemePreference: String, Codable, CaseIterable, Identifiable {
     case light
     case dark
