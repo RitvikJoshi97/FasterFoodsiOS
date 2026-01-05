@@ -8,7 +8,12 @@ struct AddFoodLogItemSheet: View {
     @State private var mealDate = Date()
     @State private var isSubmitting = false
     @State private var alertMessage: String?
-    @FocusState private var isItemNameFocused: Bool
+    private enum FocusedField: Hashable {
+        case itemName
+        case ingredientQuantity(Int)
+    }
+
+    @FocusState private var focusedField: FocusedField?
     @State private var ingredientEntries: [IngredientEntry] = [IngredientEntry()]
     @State private var isScannerPresented = false
     @State private var scannerTargetIndex: Int?
@@ -26,7 +31,7 @@ struct AddFoodLogItemSheet: View {
     private let categoryOptions = FoodLogViewModel.MealCategory.allCases
     private let friendOptions = ["Shreshtha", "Steven", "Kartik", "Chitra"]
     private let commonUnits = [
-        "pieces", "lbs", "kg", "oz", "g", "ml", "l", "pints", "liters", "cups", "tbsp", "tsp",
+        "g", "pieces", "lbs", "kg", "oz", "ml", "l", "pints", "liters", "cups", "tbsp", "tsp",
         "loaves", "containers", "bottles", "cans", "bags", "boxes",
     ]
 
@@ -36,6 +41,7 @@ struct AddFoodLogItemSheet: View {
         var quantity = ""
         var unit = ""
         var scanInfo: ScannedProductInfo?
+        var appliedRecommendedMacros: MacroTotals?
     }
 
     private struct MacroTotals: Equatable {
@@ -83,7 +89,7 @@ struct AddFoodLogItemSheet: View {
                     HStack(spacing: 8) {
                         TextField("What did you eat?", text: $viewModel.itemName)
                             .textInputAutocapitalization(.sentences)
-                            .focused($isItemNameFocused)
+                            .focused($focusedField, equals: .itemName)
 
                         Button {
                             scannerTargetIndex = nil
@@ -248,8 +254,13 @@ struct AddFoodLogItemSheet: View {
                                 .onChange(of: ingredientEntries[index].name) { _, newValue in
                                     let trimmed = newValue.trimmingCharacters(
                                         in: .whitespacesAndNewlines)
+                                    let hadApplied =
+                                        ingredientEntries[index].appliedRecommendedMacros != nil
+                                    ingredientEntries[index].appliedRecommendedMacros = nil
                                     if trimmed.isEmpty {
                                         ingredientEntries[index].scanInfo = nil
+                                        recalculateMacros()
+                                    } else if hadApplied {
                                         recalculateMacros()
                                     }
                                     let isLast = index == ingredientEntries.count - 1
@@ -279,9 +290,19 @@ struct AddFoodLogItemSheet: View {
                                             text: $ingredientEntries[index].quantity
                                         )
                                         .keyboardType(.numbersAndPunctuation)
+                                        .focused(
+                                            $focusedField,
+                                            equals: .ingredientQuantity(index)
+                                        )
                                         .onChange(
                                             of: ingredientEntries[index].quantity
                                         ) { _, _ in
+                                            if ingredientEntries[index].appliedRecommendedMacros
+                                                != nil
+                                            {
+                                                ingredientEntries[index].appliedRecommendedMacros =
+                                                    nil
+                                            }
                                             recalculateMacros()
                                         }
                                         Picker(
@@ -293,6 +314,110 @@ struct AddFoodLogItemSheet: View {
                                             }
                                         }
                                         .pickerStyle(.menu)
+                                    }
+                                    if let totals = ingredientScannedMacros(
+                                        for: ingredientEntries[index]
+                                    ) {
+                                        HStack(spacing: 12) {
+                                            if totals.calories > 0 {
+                                                Text(
+                                                    "Calories: \(formatMacroValue(totals.calories, decimals: 0))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                            if totals.carbohydrates > 0 {
+                                                Text(
+                                                    "C: \(formatMacroValue(totals.carbohydrates, decimals: 1))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                            if totals.protein > 0 {
+                                                Text(
+                                                    "P: \(formatMacroValue(totals.protein, decimals: 1))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                            if totals.fat > 0 {
+                                                Text(
+                                                    "F: \(formatMacroValue(totals.fat, decimals: 1))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    if let appliedTotals =
+                                        ingredientEntries[index].appliedRecommendedMacros
+                                    {
+                                        HStack(spacing: 12) {
+                                            if appliedTotals.calories > 0 {
+                                                Text(
+                                                    "Calories: \(formatMacroValue(appliedTotals.calories, decimals: 0))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                            if appliedTotals.carbohydrates > 0 {
+                                                Text(
+                                                    "C: \(formatMacroValue(appliedTotals.carbohydrates, decimals: 1))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                            if appliedTotals.protein > 0 {
+                                                Text(
+                                                    "P: \(formatMacroValue(appliedTotals.protein, decimals: 1))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                            if appliedTotals.fat > 0 {
+                                                Text(
+                                                    "F: \(formatMacroValue(appliedTotals.fat, decimals: 1))"
+                                                )
+                                                .font(.caption)
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    } else if let suggestedTotals = ingredientSuggestedMacros(
+                                        for: ingredientEntries[index]
+                                    ) {
+                                        HStack(spacing: 12) {
+                                            HStack(spacing: 12) {
+                                                if suggestedTotals.calories > 0 {
+                                                    Text(
+                                                        "Calories: \(formatMacroValue(suggestedTotals.calories, decimals: 0))"
+                                                    )
+                                                    .font(.caption)
+                                                }
+                                                if suggestedTotals.carbohydrates > 0 {
+                                                    Text(
+                                                        "C: \(formatMacroValue(suggestedTotals.carbohydrates, decimals: 1))"
+                                                    )
+                                                    .font(.caption)
+                                                }
+                                                if suggestedTotals.protein > 0 {
+                                                    Text(
+                                                        "P: \(formatMacroValue(suggestedTotals.protein, decimals: 1))"
+                                                    )
+                                                    .font(.caption)
+                                                }
+                                                if suggestedTotals.fat > 0 {
+                                                    Text(
+                                                        "F: \(formatMacroValue(suggestedTotals.fat, decimals: 1))"
+                                                    )
+                                                    .font(.caption)
+                                                }
+                                            }
+                                            Spacer()
+                                            Button("Use") {
+                                                applySuggestedMacros(suggestedTotals, index: index)
+                                            }
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.accentColor)
+                                            .clipShape(Capsule())
+                                            .buttonStyle(.plain)
+                                        }
                                     }
                                     Divider()
                                 }
@@ -422,7 +547,7 @@ struct AddFoodLogItemSheet: View {
             .task {
                 // Focus the first field and show keyboard
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    isItemNameFocused = true
+                    focusedField = .itemName
                 }
             }
             .alert("Something went wrong", isPresented: alertBinding) {
@@ -464,9 +589,10 @@ struct AddFoodLogItemSheet: View {
             let trimmed = ingredientEntries[index]
                 .unit
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? (commonUnits.first ?? "") : trimmed
+            return trimmed.isEmpty ? "g" : trimmed
         } set: { newValue in
             ingredientEntries[index].unit = newValue
+            ingredientEntries[index].appliedRecommendedMacros = nil
             recalculateMacros()
         }
     }
@@ -478,6 +604,9 @@ struct AddFoodLogItemSheet: View {
             ingredientEntries[index].unit = unit
         }
         recalculateMacros()
+        DispatchQueue.main.async {
+            focusedField = .ingredientQuantity(index)
+        }
     }
 
     private func applyMealScan(_ product: ScannedProductInfo) {
@@ -534,6 +663,10 @@ struct AddFoodLogItemSheet: View {
         }
 
         for entry in ingredientEntries {
+            if let appliedTotals = entry.appliedRecommendedMacros {
+                totals.add(appliedTotals)
+                continue
+            }
             guard let info = entry.scanInfo, let nutriments = info.nutriments else { continue }
             let quantityValue = parseDouble(entry.quantity)
             guard quantityValue > 0 else { continue }
@@ -546,6 +679,72 @@ struct AddFoodLogItemSheet: View {
         }
 
         return totals
+    }
+
+    private func ingredientSuggestedMacros(for entry: IngredientEntry) -> MacroTotals? {
+        guard entry.appliedRecommendedMacros == nil else { return nil }
+        let name = entry.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        let quantityValue = parseDouble(entry.quantity)
+        guard quantityValue > 0 else { return nil }
+        if ingredientScannedMacros(for: entry) != nil { return nil }
+        let unit = entry.unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedUnit: String
+        if unit.isEmpty {
+            if let info = entry.scanInfo, let preferred = preferredUnit(for: info) {
+                resolvedUnit = preferred
+            } else {
+                resolvedUnit = "g"
+            }
+        } else {
+            resolvedUnit = unit
+        }
+        guard let grams = quantityInGrams(quantityValue, unit: resolvedUnit) else { return nil }
+        return dummySuggestedMacros(for: grams)
+    }
+
+    private func ingredientScannedMacros(for entry: IngredientEntry) -> MacroTotals? {
+        guard let info = entry.scanInfo, let nutriments = info.nutriments else { return nil }
+        let quantityValue = parseDouble(entry.quantity)
+        guard quantityValue > 0 else { return nil }
+        let unit = entry.unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedUnit = unit.isEmpty ? preferredUnit(for: info) : unit
+        guard let grams = quantityInGrams(quantityValue, unit: resolvedUnit) else { return nil }
+        let totals = macros(from: nutriments, grams: grams)
+        guard
+            totals.calories > 0 || totals.protein > 0 || totals.fat > 0 || totals.carbohydrates > 0
+        else {
+            return nil
+        }
+        return totals
+    }
+
+    private func dummySuggestedMacros(for grams: Double) -> MacroTotals? {
+        guard grams > 0 else { return nil }
+        let per100g = MacroTotals(
+            calories: 261,
+            protein: 3,
+            fat: 15,
+            carbohydrates: 27
+        )
+        let multiplier = grams / 100.0
+        let totals = MacroTotals(
+            calories: per100g.calories * multiplier,
+            protein: per100g.protein * multiplier,
+            fat: per100g.fat * multiplier,
+            carbohydrates: per100g.carbohydrates * multiplier
+        )
+        guard
+            totals.calories > 0 || totals.protein > 0 || totals.fat > 0 || totals.carbohydrates > 0
+        else {
+            return nil
+        }
+        return totals
+    }
+
+    private func applySuggestedMacros(_ totals: MacroTotals, index: Int) {
+        ingredientEntries[index].appliedRecommendedMacros = totals
+        recalculateMacros()
     }
 
     private func servingQuantityInGrams(for product: ScannedProductInfo) -> Double? {
